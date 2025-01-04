@@ -1,0 +1,14 @@
+.idea/
+.vscode/
+node_modules/
+
+# for macos
+.DS_Store
+
+# ignore overloaded docker-compose.yml
+docker-compose.yml
+!.devcontainer/docker-compose.yml
+
+dist/*
+
+*.log
