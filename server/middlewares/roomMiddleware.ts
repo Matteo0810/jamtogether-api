@@ -8,7 +8,7 @@ export default async (req: FastifyRequest, reply: FastifyReply) => {
             if(!room) {
                 reply.status(404).send("Room not found");
             }
-            req.room = room;
+            req.room = room!;
         }
     }
 }
