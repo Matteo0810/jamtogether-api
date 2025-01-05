@@ -2,7 +2,7 @@ import {v4 as uuid} from "uuid";
 
 import redis from "../services/redis";
 
-import MusicService, { IMusicToken, ITrack } from "../business/musicServices/MusicService";
+import MusicService, { IMusicToken, ITrack, TQueue } from "../business/musicServices/MusicService";
 import SpotifyService from "../business/musicServices/SpotifyService";
 import { webSocketConnections } from "../services/websocket";
 
@@ -17,16 +17,18 @@ export declare namespace RoomEvents {
     namespace Music {
         interface Added { track: ITrack; }
         interface Removed { track: ITrack; }
-        interface Switched { newTrack: ITrack; }
+        interface Switched { newTrack: ITrack; newQueue: Array<ITrack>; }
+        interface Played { newTrack: ITrack, newQueue: Array<ITrack> }
+        interface Paused { newTrack: ITrack, newQueue: Array<ITrack> }
 
-        type MessageType = "MUSIC_ADDED" | "MUSIC_REMOVED" | "MUSIC_SWITCHED";
+        type MessageType = "MUSIC_ADDED" | "MUSIC_REMOVED" | "MUSIC_SWITCHED" | "MUSIC_PLAYED" | "MUSIC_PAUSED";
     }
 
     type MessageType = Music.MessageType | Member.MessageType;
     interface IncomingMessage<T = {}> {
         date: Date;
         type: RoomEvents.MessageType;
-        data: T;
+        data?: T;
     }
 
 }
@@ -72,8 +74,8 @@ export default class Rooms {
             id: this.generateRoomId(),
             ownerId: clientId,
             createdAt: new Date(),
+            token,
 
-            token: token,
             history: [],
             members: [],
         };
@@ -129,8 +131,7 @@ export default class Rooms {
         await this.update(room.id, {
             members: [...room.members, member]
         });
-
-        await this.sendMessage<RoomEvents.Member.Joined>(room.id, {
+        await this.broadcast<RoomEvents.Member.Joined>(room.id, {
             type: "MEMBER_JOINED",
             data: { member }
         });
@@ -143,7 +144,6 @@ export default class Rooms {
         if(clientIndex === -1) {
             throw new Error("Client id is not in this room.");
         }
-        const subscriptionId = `room:${room.id}`;
         const member = room.members.at(clientIndex)!;
 
         room.members.splice(clientIndex, 1);
@@ -151,19 +151,18 @@ export default class Rooms {
         await this.update(room.id, {
             members: room.members
         });
-        await redis.unsubscribe(subscriptionId);
-        await this.sendMessage<RoomEvents.Member.Leaved>(room.id, {
-            type: "MEMBER_JOINED",
+        await this.broadcast<RoomEvents.Member.Leaved>(room.id, {
+            type: "MEMBER_LEAVED",
             data: { member }
         });
 
         return room;
     }
 
-    public async sendMessage<T>(id: string, message: Omit<RoomEvents.IncomingMessage<T>, "date">) {
+    public async broadcast<T>(id: string, message: Omit<RoomEvents.IncomingMessage<T>, "date">): Promise<void> {
         const room = await this.get(id);
         if(!room) return;
-
+        
         const membersValidWebsockets = room.members
             .map(({id: uid}) => webSocketConnections[uid])
             .filter(ws => !!ws);
@@ -172,6 +171,11 @@ export default class Rooms {
         membersValidWebsockets.forEach(ws => {
             ws.send(JSON.stringify(message));
         });
+
+        // then put it in the history
+        this.update(room.id, {
+            history: [...room.history, message as RoomEvents.IncomingMessage]
+        })
     }
 
 }

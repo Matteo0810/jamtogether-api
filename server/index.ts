@@ -46,11 +46,8 @@ await fastify.register(fastifyMultipart);
 fastify.addHook("preHandler", dataSourcesMiddleware);
 
 // routes
-import spotify from "./routes/spotify";
-import rooms from "./routes/rooms";
-
-spotify(fastify);
-rooms(fastify);
+import router from "./routes/index";
+router(fastify);
 
 try {    
     await redis.connect();

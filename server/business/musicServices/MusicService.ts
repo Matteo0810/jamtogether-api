@@ -9,7 +9,7 @@ export interface IMusicToken {
 interface IRequestParams {
     endpoint: string;     
     query?: Record<string, unknown>;
-    method?: "GET" | "POST";  
+    method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";  
     body?: Record<string, unknown>;
     headers?: Record<string, string>;
 }
@@ -21,6 +21,11 @@ export interface ITrack {
     image: string;
 }
 
+export interface IPlayer {
+    isPlaying: boolean;
+}
+
+export type TQueue = { queue: Array<ITrack>, currentPlaying: ITrack|null };
 export type IQuerySearch = Array<ITrack>;
 
 export default abstract class MusicService {
@@ -69,19 +74,17 @@ export default abstract class MusicService {
 
     // user's queue
     public abstract addToQueue(id: string): Promise<void>;
-    public abstract getQueue(): Promise<Array<ITrack>>;
+    public abstract getQueue(): Promise<TQueue>;
     
     // api search musics
     public abstract search(query: string): Promise<IQuerySearch>;
     
     // player
-    public abstract skipNext(): Promise<ITrack|null>;
-    public abstract skipPrevious(): Promise<ITrack|null>;
+    public abstract skipNext(): Promise<TQueue>;
+    public abstract skipPrevious(): Promise<TQueue>;
 
-    public abstract pause(): Promise<void>;
-    public abstract play(): Promise<void>;
-    
-    // current playing 
-    public abstract getCurrentPlaying(): Promise<ITrack|null>;
+    public abstract pause(): Promise<TQueue>;
+    public abstract play(): Promise<TQueue>;
 
+    public abstract getPlayer(): Promise<IPlayer|null>;
 }

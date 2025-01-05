@@ -1,11 +1,10 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { FormData } from "node-fetch";
 import queryString from "query-string";
 import {v4 as uuid} from "uuid";
 
 export default (fastify: FastifyInstance) => {
 
-    fastify.get("/spotify/login", {
+    fastify.get("/login", {
         handler: (request: FastifyRequest, reply: FastifyReply) => {
             const client_id = process.env.SPOTIFY_CLIENT_ID!;
             const redirect_uri = process.env.WEBSITE_URL+"/create-room";
@@ -33,7 +32,7 @@ export default (fastify: FastifyInstance) => {
         }
     });
 
-    fastify.post("/spotify/access-token", {
+    fastify.post("/access-token", {
         schema: {
             body: {
                 type: "object",
@@ -79,7 +78,7 @@ export default (fastify: FastifyInstance) => {
         }
     });
 
-    fastify.post("/spotify/refresh-token", {
+    fastify.post("/refresh-token", {
         schema: {
             body: {
                 type: "object",
@@ -93,22 +92,21 @@ export default (fastify: FastifyInstance) => {
         handler: async (request: FastifyRequest, reply: FastifyReply) => {
             const { refreshToken } = request.body as { refreshToken: string };
 
-            const params = queryString.stringify({
-                grant_type: 'refresh_token',
-                refresh_token: refreshToken,
-                client_id: process.env.SPOTIFY_CLIENT_ID!
-            });
-
             try {
-                const response = await fetch("https://accounts.spotify.com/api/token?"+params, {
+                const response = await fetch("https://accounts.spotify.com/api/token", {
                     method: "POST",
                     headers: {
                         'content-type': 'application/x-www-form-urlencoded'
-                    }
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'refresh_token',
+                        refresh_token: refreshToken,
+                        client_id: process.env.SPOTIFY_CLIENT_ID!
+                    })
                 });
                 const data = await response.json();
                 if(!response.ok) {
-                    throw new Error(data ?? data?.error ?? "HTTP Error ! " + response.status);
+                    throw new Error(JSON.stringify(data) ?? "HTTP Error ! " + response.status);
                 }
                 reply.send(data);
             } catch(e) {

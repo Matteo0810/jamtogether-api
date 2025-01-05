@@ -1,6 +1,5 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { IMusicToken, ITrack } from "../business/musicServices/MusicService";
-import { RoomEvents } from "../dataSources/rooms";
+import { IMusicToken } from "../business/musicServices/MusicService";
 
 const idParamsCheck = {
     params: {
@@ -11,12 +10,11 @@ const idParamsCheck = {
         },
         additionalProperties: false
     }
-};
+}
 
 export default (fastify: FastifyInstance) => {
-    // TODO: reduce code size, add more security (pass token with room-client-identities)
 
-    fastify.post("/rooms/create", {
+    fastify.post("/create", {
         schema: {
             body: {
                 type: "object",
@@ -52,7 +50,7 @@ export default (fastify: FastifyInstance) => {
         }
     });
 
-    fastify.post("/rooms/refresh-authorization", {
+    fastify.post("/refresh-authorization", {
         schema: {
             body: {
                 type: "object",
@@ -94,7 +92,7 @@ export default (fastify: FastifyInstance) => {
         }
     })
 
-    fastify.post("/rooms/join/:id", {
+    fastify.post("/join/:id", {
         schema: {
             ...idParamsCheck
         },
@@ -117,10 +115,8 @@ export default (fastify: FastifyInstance) => {
         }
     })
 
-    fastify.get("/rooms/get/:id", {
-        schema: {
-            ...idParamsCheck
-        },
+    fastify.get("/get/:id", {
+        schema: idParamsCheck,
         handler: async (request: FastifyRequest, reply: FastifyReply) => {
             try {
                 const { id } = request.params as {id: string;}; 
@@ -129,151 +125,18 @@ export default (fastify: FastifyInstance) => {
                     reply.status(404).send({ message: "Room introuvable." });
                 }
 
-                const currentPlaying = await room?.service.getCurrentPlaying();
-                const queue = await room?.service.getQueue();
-
+                const player = await room?.service.getPlayer();
+                const { currentPlaying, queue } = await room?.service.getQueue()!;
                 const {token, service, ...r}: any = room;
 
                 reply.status(200).send({ 
-                    room: { ...r, queue, currentPlaying } 
+                    room: { 
+                        ...r, 
+                        queue, 
+                        currentPlaying, 
+                        isPlaying: player ? player.isPlaying : false
+                    } 
                 });
-            } catch(e) {
-                const error = e as Error;
-                reply.status(500).send({ message: error.message, stack: error.stack });
-            }
-        }
-    });
-
-    fastify.get("/rooms/actions/:id/search", {
-        schema: {
-            ...idParamsCheck,
-            querystring: {
-                type: "object",
-                required: ["q"],
-                properties: {
-                    q: { type: "string", minLength: 1 }
-                },
-                additionalProperties: false
-            }
-        },
-        handler: async (req: FastifyRequest, reply: FastifyReply) => {
-            try {
-                const {id} = req.params as {id: string};
-                const {q} = req.query as {q: string};
-                if(!q?.trim()) {
-                    reply.status(200).send({ items: [] });
-                }
-
-                const room = await req.dataSources.rooms.get(id);
-                if(!room) {
-                    reply.status(404).send("Room not found");
-                }
-                reply.status(200).send({ items: await room?.service.search(q) });
-            } catch(e) {
-                const error = e as Error;
-                reply.status(500).send({
-                    message: error.message,
-                    stack: error.stack
-                });
-            }
-        }
-    })
-
-    fastify.post("/rooms/actions/:id/add-to-queue", {
-        schema: {
-            ...idParamsCheck,
-            body: {
-                type: "object",
-                required: ["track"],
-                properties: {
-                    track: {
-                        type: "object",
-                        required: ["id"],
-                        properties: {
-                            id: { type: "string", minLength: 1 },
-                            name: { type: "string", minLength: 1 },
-                            artists: { 
-                                type: "array",
-                                items: {
-                                    type: "string",
-                                    minLength: 1
-                                },
-                                minItems: 1 
-                            },
-                            image: { type: "string", minLength: 1 }
-                        }
-                    }
-                }
-            }
-        },
-        handler: async (req: FastifyRequest, reply: FastifyReply) => {
-            try {
-                const {track} = req.body as {track: ITrack};
-                const {id} = req.params as {id: string};
-                const room = await req.dataSources.rooms.get(id);
-                if(!room) {
-                    reply.status(404).send({ message: "Room not found" });
-                }
-
-                await room?.service.addToQueue(track.id);
-                await req.dataSources.rooms.sendMessage<RoomEvents.Music.Added>(room?.id!, {
-                    type: "MUSIC_ADDED",
-                    data: { track }
-                });
-
-                reply.status(200).send({ message: `Music ${track.name} queued !` });
-            } catch(e) {
-                const error = e as Error;
-                reply.status(500).send({ message: error.message, stack: error.stack });
-            }
-        }
-    })
-
-    fastify.post("/rooms/actions/:id/skip-next", {
-        schema: idParamsCheck,
-        handler: async (req: FastifyRequest, reply: FastifyReply) => {
-            try {
-                const {id} = req.params as {id: string};
-                const room = await req.dataSources.rooms.get(id);
-                if(!room) {
-                    reply.status(404).send({ message: "Room not found" });
-                }
-
-                const newTrack = await room?.service.skipNext();
-                if(newTrack) {
-                    await req.dataSources.rooms.sendMessage<RoomEvents.Music.Switched>(room?.id!, {
-                        type: "MUSIC_SWITCHED",
-                        data: { newTrack }
-                    });
-                }
-
-                reply.status(200).send({ message: `Music ${newTrack?.name} played !` });
-            } catch(e) {
-                const error = e as Error;
-                reply.status(500).send({ message: error.message, stack: error.stack });
-            }
-        }
-    });
-
-    fastify.post("/rooms/actions/:id/skip-previous", {
-        schema: idParamsCheck,
-        handler: async (req: FastifyRequest, reply: FastifyReply) => {
-            try {
-                const {id} = req.params as {id: string};
-                const room = await req.dataSources.rooms.get(id);
-                if(!room) {
-                    reply.status(404).send({ message: "Room not found" });
-                }
-
-                const newTrack = await room?.service.skipPrevious();
-                if(newTrack) {
-                    await req.dataSources.rooms.sendMessage<RoomEvents.Music.Switched>(room?.id!, {
-                        type: "MUSIC_SWITCHED",
-                        data: { newTrack }
-                    });
-                }
-
-                reply.status(200).send({ message: `Music ${newTrack?.name} played !` });
             } catch(e) {
                 const error = e as Error;
                 reply.status(500).send({ message: error.message, stack: error.stack });
