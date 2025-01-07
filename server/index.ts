@@ -1,7 +1,6 @@
-import Fastify, { FastifyError } from "fastify";
+import Fastify from "fastify";
 
 import fastifyRateLimit from "@fastify/rate-limit";
-import fastifyStatic from "@fastify/static";
 import fastifyHelmet from "@fastify/helmet";
 import fastifyCors from '@fastify/cors';
 import fastifyMultipart from "@fastify/multipart";
@@ -32,12 +31,6 @@ await fastify.register(fastifyRateLimit, {
     max: 100,
     timeWindow: '1 minute'
 })
-
-// upload folder (for images)
-await fastify.register(fastifyStatic, {
-    root: process.cwd()+"/uploads",
-    prefix: '/static/',
-});
 
 // for files
 await fastify.register(fastifyMultipart);
