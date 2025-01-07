@@ -1,3 +1,4 @@
+import queryString from "query-string";
 import { RoomEvents } from "../../dataSources/rooms";
 import MusicService, { IMusicToken, IPlayer, IQuerySearch, ITrack, TQueue } from "./MusicService";
 
@@ -34,6 +35,38 @@ export default class SpotifyService extends MusicService {
 
     public constructor(token: IMusicToken) {
         super("https://api.spotify.com/v1", token);
+    }
+
+    public async generateToken(oldToken: IMusicToken): Promise<IMusicToken> {
+        const refreshToken = oldToken.refreshToken;
+        const client_id = process.env.SPOTIFY_CLIENT_ID!;
+        const client_secret = process.env.SPOTIFY_CLIENT_SECRET!;
+
+        try {
+            const params = queryString.stringify({
+                grant_type: 'refresh_token',
+                refresh_token: refreshToken,
+            })
+            const response = await fetch("https://accounts.spotify.com/api/token?"+params, {
+                method: "POST",
+                headers: {
+                    'content-type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64')
+                }
+            });
+
+            const data = await response.json();
+            if(!response.ok) {
+                throw new Error(JSON.stringify(data) ?? "HTTP Error ! " + response.status);
+            }                
+
+            return { 
+                ...data,
+                refresh_token: data.refresh_token || refreshToken 
+            }
+        } catch(e) {
+            throw e;
+        }
     }
 
     public async startListeners(roomId: string): Promise<void> {

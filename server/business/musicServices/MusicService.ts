@@ -7,6 +7,8 @@ export type IMusicService = "SPOTIFY";
 export interface IMusicToken {
     type: IMusicService;
     authorization: string;
+    expiresAt: string;
+    refreshToken: string;
 }
 
 interface IRequestParams {
@@ -35,10 +37,10 @@ export type TQueue = { queue: Array<ITrack>, currentPlaying: ITrack|null };
 export type IQuerySearch = Array<ITrack>;
 
 export default abstract class MusicService {
-
-    private readonly token: IMusicToken;
+    
+    private token: IMusicToken;
+    
     private readonly baseURL: string;
-
     protected readonly rooms: Rooms;
 
     public constructor(baseURL: string, token: IMusicToken) {
@@ -61,7 +63,7 @@ export default abstract class MusicService {
             method,
             headers: {
                 ...headers,
-                'Authorization': this.token.authorization
+                'Authorization': await this.getAuthorization()
             },
             ...body && { body: JSON.stringify(body) }
         });
@@ -80,6 +82,19 @@ export default abstract class MusicService {
         } catch(e) {} // ignore
         return null;
     }
+
+    // authorization
+    private async getAuthorization(): Promise<string> {
+        if(this.hasTokenExpired()) {
+            this.token = await this.generateToken(this.token);
+        }
+        return this.token.authorization;
+    }
+
+    private hasTokenExpired(): boolean {
+        return Date.now() >= new Date(this.token.expiresAt).getTime();
+    }
+    public abstract generateToken(oldToken: IMusicToken): Promise<IMusicToken>;
 
     // listeners
     public abstract startListeners(roomId: string): void;

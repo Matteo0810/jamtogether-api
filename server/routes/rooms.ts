@@ -25,7 +25,9 @@ export default (fastify: FastifyInstance) => {
                         required: ["type", "authorization"],
                         properties: {
                             type: { type: "string", minLength: 1 },
-                            authorization: { type: "string", minLength: 1 }
+                            authorization: { type: "string", minLength: 1 },
+                            expiresAt: { type: "string", minLength: 1 },
+                            refreshToken: { type: "string", minLength: 1 }
                         },
                         additionalProperties: false
                     }
