@@ -1,7 +1,5 @@
 import queryString from "query-string";
-import EventEmitter from "events";
-import Rooms, { RoomEvents } from "../../dataSources/rooms";
-import { sleep } from "../../helpers/globalUtils";
+import Rooms from "../../dataSources/rooms";
 
 export type IMusicService = "SPOTIFY";
 export interface IMusicToken {
