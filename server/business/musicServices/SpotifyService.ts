@@ -2,6 +2,15 @@ import queryString from "query-string";
 import { RoomEvents } from "../../dataSources/rooms";
 import MusicService, { IMusicToken, IPlayer, IQuerySearch, ITrack, TQueue } from "./MusicService";
 
+export interface ISpotifyCredentials {
+    access_token: string
+    refresh_token: string
+    scope: string
+    expires_at: number
+    expires_in: number
+    token_type: string
+};
+
 interface ISpotifyTrackObject {
     uri: string;
     is_playable: boolean;
@@ -55,14 +64,16 @@ export default class SpotifyService extends MusicService {
                 }
             });
 
-            const data = await response.json();
+            const data = await response.json() as ISpotifyCredentials;
             if(!response.ok) {
                 throw new Error(JSON.stringify(data) ?? "HTTP Error ! " + response.status);
             }                
 
             return { 
-                ...data,
-                refresh_token: data.refresh_token || refreshToken 
+                type: oldToken.type,
+                authorization: `${data.token_type} ${data.access_token}`,
+                expiresAt: new Date(data.expires_at).toISOString(),
+                refreshToken: data.refresh_token || refreshToken 
             }
         } catch(e) {
             throw e;
