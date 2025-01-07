@@ -50,71 +50,6 @@ export default (fastify: FastifyInstance) => {
         }
     });
 
-    fastify.post("/refresh-authorization", {
-        schema: {
-            body: {
-                type: "object",
-                required: ["roomId", "newAuthorization"],
-                properties: {
-                    newAuthorization: { type: "string", minLength: 1 },
-                    roomId: { type: "string", minLength: 1 }
-                },
-                additionalProperties: false
-            },
-            headers: {
-                type: "object",
-                required: ["x-room-owner-id"],
-                properties: {
-                    "x-room-owner-id": { type: "string", minLength: 1 }
-                },
-                additionalProperties: false
-            }
-        },
-        handler: async (req: FastifyRequest, reply: FastifyReply) => {
-            const headers = req.headers as { "x-room-owner-id": string; };
-            const { roomId, newAuthorization } = req.body as { roomId: string; newAuthorization: string; };
-            
-            const room = await req.dataSources.rooms.get(roomId);
-            if(room === null) {
-                reply.status(404).send({ message: "room not found with id: " + roomId });
-            }
-            
-            if(room?.ownerId !== headers["x-room-owner-id"]) {
-                reply.status(403).send({ message: "You are not the room owner." });
-            }
-            req.dataSources.rooms.update(room?.id!, {
-                token: {
-                    ...room?.token!,
-                    authorization: newAuthorization
-                }
-            });
-            reply.status(200).send({ message: "Room token updated" });
-        }
-    })
-
-    fastify.post("/join/:id", {
-        schema: {
-            ...idParamsCheck
-        },
-        handler: async (request: FastifyRequest, reply: FastifyReply) => {
-            try {
-                const {id} = request.params as {id: string};
-                const clientId = request.dataSources.rooms.generateClientId();
-                const r = await request.dataSources.rooms.get(id);
-
-                if(!r) {
-                    throw new Error("Chambre introuvable.");
-                }
-                const {token, service, ...room}:any= r;
-                await request.dataSources.rooms.join(room, clientId);
-                reply.status(200).send({ clientId, room })
-            } catch(e) {
-                const error = e as Error;
-                reply.status(500).send({ message: error.message });
-            }
-        }
-    })
-
     fastify.get("/get/:id", {
         schema: idParamsCheck,
         handler: async (request: FastifyRequest, reply: FastifyReply) => {
@@ -127,14 +62,17 @@ export default (fastify: FastifyInstance) => {
 
                 const player = await room?.service.getPlayer();
                 const { currentPlaying, queue } = await room?.service.getQueue()!;
-                const {token, service, ...r}: any = room;
+                const {token, service, ownerId, ...r}: any = room;
 
-                reply.status(200).send({ 
+                const clientId = request.dataSources.rooms.generateClientId();
+
+                reply.status(200).send({
+                    generatedClientId: clientId, // can be not used (since the user already have one)
                     room: { 
                         ...r, 
                         queue, 
                         currentPlaying, 
-                        isPlaying: player ? player.isPlaying : false
+                        player
                     } 
                 });
             } catch(e) {

@@ -91,24 +91,34 @@ export default (fastify: FastifyInstance) => {
         },
         handler: async (request: FastifyRequest, reply: FastifyReply) => {
             const { refreshToken } = request.body as { refreshToken: string };
+            const client_id = process.env.SPOTIFY_CLIENT_ID!;
+            const client_secret = process.env.SPOTIFY_CLIENT_SECRET!;
 
             try {
-                const response = await fetch("https://accounts.spotify.com/api/token", {
+                const params = queryString.stringify({
+                    grant_type: 'refresh_token',
+                    refresh_token: refreshToken,
+                })
+                const response = await fetch("https://accounts.spotify.com/api/token?"+params, {
                     method: "POST",
                     headers: {
-                        'content-type': 'application/x-www-form-urlencoded'
-                    },
-                    body: new URLSearchParams({
-                        grant_type: 'refresh_token',
-                        refresh_token: refreshToken,
-                        client_id: process.env.SPOTIFY_CLIENT_ID!
-                    })
+                        'content-type': 'application/x-www-form-urlencoded',
+                        'Authorization': 'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64')
+                    }
                 });
+
                 const data = await response.json();
                 if(!response.ok) {
                     throw new Error(JSON.stringify(data) ?? "HTTP Error ! " + response.status);
                 }
-                reply.send(data);
+
+                // TODO: si la personne qui refresh son token est aussi owner d'un salon, mettre à jour le token du salon
+                
+
+                reply.send({ 
+                    ...data, 
+                    refresh_token: data.refresh_token || refreshToken 
+                });
             } catch(e) {
                 const error = e as Error;
                 reply.status(500).send({

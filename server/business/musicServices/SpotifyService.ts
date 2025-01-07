@@ -1,6 +1,5 @@
+import { RoomEvents } from "../../dataSources/rooms";
 import MusicService, { IMusicToken, IPlayer, IQuerySearch, ITrack, TQueue } from "./MusicService";
-
-// TODO: déclancher un broadcast quand un son spotify est fini.
 
 interface ISpotifyTrackObject {
     uri: string;
@@ -14,12 +13,62 @@ interface ISpotifyTrackObject {
             url: string;
         }[];
     }
+    duration_ms: number;
 };
 
+interface IRoomCache {
+    roomId: string;
+    intervals: Map<string, NodeJS.Timeout>;
+    states: {
+        currentSong: {
+            id: string;
+        };
+        isPlaying: boolean;
+    }
+}
+
 export default class SpotifyService extends MusicService {
-    
+
+    // listener caches (only for spotify)
+    private static cache: Map<string, IRoomCache> = new Map();
+
     public constructor(token: IMusicToken) {
         super("https://api.spotify.com/v1", token);
+    }
+
+    public async startListeners(roomId: string): Promise<void> {
+        const {currentPlaying} = await this.getQueue();
+        const player = await this.getPlayer();
+
+        // init the cache with real state data
+        if(currentPlaying && player) {
+            SpotifyService.initCache({
+                roomId,
+                states: {
+                    currentSong: {
+                        id: currentPlaying.id!,
+                    },
+                    isPlaying: player.isPlaying!
+                }
+            });
+        }
+
+        // then retrieve the cache (defined bellow)
+        const cache = SpotifyService.getCache(roomId);
+
+        // enable all listeners
+        this.waitUntilSongPlayingStatusSwitched(cache);
+        this.waitUntilSongIsEnded(cache);
+    }
+
+    public removeListeners(roomId: string): void {
+        // clear all active interval because there no garbage collector to do that
+        SpotifyService.getCache(roomId)
+            .intervals.values()
+            .forEach(i => clearInterval(i));
+
+        // then delete the room from the cache
+        SpotifyService.cache.delete(roomId);
     }
 
     public async addToQueue(id: string): Promise<void> {
@@ -51,7 +100,8 @@ export default class SpotifyService extends MusicService {
                 id: response.currently_playing.uri,
                 artists: response.currently_playing.artists.map(({name}) => name),
                 image: response.currently_playing.album.images[0].url,
-                name: response.currently_playing.name
+                name: response.currently_playing.name,
+                duration: response.currently_playing.duration_ms
             } : null
         };
     }
@@ -61,6 +111,7 @@ export default class SpotifyService extends MusicService {
             endpoint: "/me/player/pause",
             method: "PUT"
         });
+
         // wait before the song is played
         await new Promise((resolve) => setTimeout(resolve, 200));
         return this.getQueue();
@@ -69,13 +120,19 @@ export default class SpotifyService extends MusicService {
     public async getPlayer(): Promise<IPlayer|null> {
         const response = await this.request<{
             is_playing: boolean;
+            device: {
+                name: string;
+            }
+            progress_ms: number;
         }>({
             endpoint: "/me/player",
             method: "GET"
         });
         if(!response) return null;
         return {
-            isPlaying: response.is_playing
+            isPlaying: response.is_playing,
+            musicTimeRemaing: response.progress_ms,
+            deviceName: response.device.name
         }
     }
 
@@ -84,6 +141,7 @@ export default class SpotifyService extends MusicService {
             endpoint: "/me/player/play",
             method: "PUT"
         });
+
         // wait before the song is played
         await new Promise((resolve) => setTimeout(resolve, 200));
         return this.getQueue();
@@ -134,6 +192,64 @@ export default class SpotifyService extends MusicService {
                 image: item.album.images[0].url,
                 id: item.uri
             })) as IQuerySearch
+    }
+
+    private async waitUntilSongPlayingStatusSwitched(cache: IRoomCache) {
+        if(!cache.intervals.has("playingStatus")) {
+            cache.intervals.set("playingStatus", setInterval(async () => {
+                const player = await this.getPlayer();
+                
+                if(player && player?.isPlaying !== cache.states.isPlaying) {
+                    cache.states.isPlaying = player?.isPlaying;
+                    await this.rooms.broadcast<RoomEvents.Music.Played|RoomEvents.Music.Paused>(cache.roomId, {
+                        type: player!.isPlaying ? "MUSIC_PLAYED" : "MUSIC_PAUSED"
+                    });
+                }
+            }, 2e3)); // you can increase the time if you might think that is not enought
+        }
+    }
+
+    private async waitUntilSongIsEnded(cache: IRoomCache) {
+        // song switch happend in two cases: if the song is ended or is switched by the owner on spotify
+        if(!cache.intervals.has("songSwitchDetection")) {
+            cache.intervals.set("songSwitchDetection", setInterval(async () => {
+                const {currentPlaying, queue} = await this.getQueue();
+                if(
+                    currentPlaying?.id !== cache.states.currentSong.id
+                ) {
+                    await this.rooms.broadcast<RoomEvents.Music.Switched>(cache.roomId, {
+                        type: "MUSIC_SWITCHED",
+                        data: { newQueue: queue, newTrack: currentPlaying! }
+                    });
+
+                    cache.states.currentSong.id = currentPlaying?.id!;
+                }
+            }, 2e3)); // can be change as well
+        }
+    }
+
+    private static getCache(roomId: string): IRoomCache {
+        if(!SpotifyService.cache.has(roomId)) {
+            SpotifyService.cache.set(roomId, {
+                roomId,
+                intervals: new Map(),
+                states: {
+                    currentSong: {
+                        id: "",
+                    },
+                    isPlaying: false
+                }
+            });
+        }
+        return SpotifyService.cache.get(roomId)!;
+    }
+
+    private static initCache(data: Omit<IRoomCache, "intervals">): void {
+        SpotifyService.cache.set(data.roomId, {
+            roomId: data.roomId,
+            intervals: new Map(),
+            states: data.states
+        });
     }
 
 }

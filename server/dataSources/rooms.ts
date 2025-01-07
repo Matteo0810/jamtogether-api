@@ -2,7 +2,7 @@ import {v4 as uuid} from "uuid";
 
 import redis from "../services/redis";
 
-import MusicService, { IMusicToken, ITrack, TQueue } from "../business/musicServices/MusicService";
+import MusicService, { IMusicToken, ITrack } from "../business/musicServices/MusicService";
 import SpotifyService from "../business/musicServices/SpotifyService";
 import { webSocketConnections } from "../services/websocket";
 
@@ -51,20 +51,18 @@ export interface IRoom {
 export default class Rooms {
 
     private generateRoomId() {
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-        const digits = "0123456789";
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         let result = "";
       
         for (let i = 0; i < 6; i++) {
           result += letters[Math.floor(Math.random() * letters.length)];
-          result += digits[Math.floor(Math.random() * digits.length)];
         }
       
-        return `R-${result}`;
+        return result;
     }
 
     public generateClientId() {
-        return `user-${uuid()}`;
+        return uuid();
     }
 
     public async create(token: IMusicToken): Promise<IRoom> {
@@ -81,6 +79,9 @@ export default class Rooms {
         };
 
         const key = `room:${room.id}`;
+         
+        const service = new SpotifyService(room.token);
+        service.startListeners(room.id);
 
         await redis.set(key, JSON.stringify(room));
         this.join(room, clientId);
@@ -104,6 +105,7 @@ export default class Rooms {
 
         const room = JSON.parse(r) as IRoom;
         const service = new SpotifyService(room.token);
+
         const result = Object.assign({}, room, { service });
         return result;
     }
@@ -116,6 +118,10 @@ export default class Rooms {
 
         const subscriptionKey = `room:${id}`;
         await redis.del(subscriptionKey);
+
+        const service = new SpotifyService(room.token);
+        service.removeListeners(room.id);
+        
         return room;
     }
 
