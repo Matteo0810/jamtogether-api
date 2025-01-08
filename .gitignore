@@ -12,3 +12,5 @@ docker-compose.yml
 dist/*
 
 *.log
+
+keys/*
