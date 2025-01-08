@@ -37,9 +37,11 @@ await fastify.register(fastifyMultipart);
 
 // middlewares
 fastify.addHook("preHandler", dataSourcesMiddleware);
+fastify.addHook("preHandler", tokenMiddleware);
 
 // routes
 import router from "./routes/index";
+import tokenMiddleware from "./middlewares/tokenMiddleware";
 router(fastify);
 
 try {    

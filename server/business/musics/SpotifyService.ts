@@ -1,12 +1,15 @@
 import queryString from "query-string";
+
 import { RoomEvents } from "../../dataSources/rooms";
-import MusicService, { IMusicToken, IPlayer, IQuerySearch, ITrack, TQueue } from "./MusicService";
+import { sleep } from "../../helpers/globalUtils";
+
+import MusicService, { IMusicToken, IPlayer, IQuerySearch, ITrack, IUserProfile, TQueue } from "./MusicService";
 
 export interface ISpotifyCredentials {
     access_token: string
     refresh_token: string
     scope: string
-    expires_at: number
+    expires_at: number;
     expires_in: number
     token_type: string
 };
@@ -47,6 +50,7 @@ export default class SpotifyService extends MusicService {
     }
 
     public async generateToken(oldToken: IMusicToken): Promise<IMusicToken> {
+        // TODO: utiliser un datasource plutot pour clean
         const refreshToken = oldToken.refreshToken;
         const client_id = process.env.SPOTIFY_CLIENT_ID!;
         const client_secret = process.env.SPOTIFY_CLIENT_SECRET!;
@@ -68,11 +72,13 @@ export default class SpotifyService extends MusicService {
             if(!response.ok) {
                 throw new Error(JSON.stringify(data) ?? "HTTP Error ! " + response.status);
             }                
-
+            const currentDate = Date.now()
+            data.expires_at = currentDate + data.expires_in * 1000
+        
             return { 
                 type: oldToken.type,
                 authorization: `${data.token_type} ${data.access_token}`,
-                expiresAt: new Date(data.expires_at).toISOString(),
+                expiresAt: data.expires_at,
                 refreshToken: data.refresh_token || refreshToken 
             }
         } catch(e) {
@@ -187,7 +193,7 @@ export default class SpotifyService extends MusicService {
         });
 
         // wait before the song is played
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await sleep(200);
         return this.getQueue();
     }
 
@@ -197,7 +203,7 @@ export default class SpotifyService extends MusicService {
             method: "POST"
         });
         // wait before the song is played
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await sleep(200);
         return this.getQueue();
     }
 
@@ -207,7 +213,7 @@ export default class SpotifyService extends MusicService {
             method: "POST"
         });
         // wait before the song is played
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await sleep(200);
         return this.getQueue();
     }
 
@@ -236,6 +242,24 @@ export default class SpotifyService extends MusicService {
                 image: item.album.images[0].url,
                 id: item.uri
             })) as IQuerySearch
+    }
+
+    public async getUserProfile(): Promise<IUserProfile | null> {
+        const response = await this.request<{
+            display_name: string;
+            id: string;
+            product: "premium"|"free";
+        }>({
+            endpoint: "/me",
+            method: "GET"
+        });
+        
+        if(!response) return null;
+        return response ? {
+            isPremium: response.product === "premium",
+            displayName: response.display_name,
+            id: response.id
+        } : null;
     }
 
     private async waitUntilSongPlayingStatusSwitched(cache: IRoomCache) {

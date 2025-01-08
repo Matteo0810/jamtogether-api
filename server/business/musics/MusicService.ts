@@ -5,7 +5,7 @@ export type IMusicService = "SPOTIFY";
 export interface IMusicToken {
     type: IMusicService;
     authorization: string;
-    expiresAt: string;
+    expiresAt: number;
     refreshToken: string;
 }
 
@@ -29,6 +29,12 @@ export interface IPlayer {
     isPlaying: boolean;
     deviceName: string;
     musicTimeRemaing: number;
+}
+
+export interface IUserProfile {
+    id: string;
+    isPremium: boolean;
+    displayName: string;
 }
 
 export type TQueue = { queue: Array<ITrack>, currentPlaying: ITrack|null };
@@ -83,14 +89,15 @@ export default abstract class MusicService {
 
     // authorization
     private async getAuthorization(): Promise<string> {
+        // if tokens expires, then refresh another (using generateToken from the service wished)
         if(this.hasTokenExpired()) {
-            this.token = await this.generateToken(this.token);
+             this.token = await this.generateToken(this.token);
         }
         return this.token.authorization;
     }
 
     private hasTokenExpired(): boolean {
-        return Date.now() >= new Date(this.token.expiresAt).getTime();
+        return Date.now() >= this.token.expiresAt;
     }
     public abstract generateToken(oldToken: IMusicToken): Promise<IMusicToken>;
 
@@ -113,4 +120,6 @@ export default abstract class MusicService {
     public abstract play(): Promise<TQueue>;
 
     public abstract getPlayer(): Promise<IPlayer|null>;
+
+    public abstract getUserProfile(): Promise<IUserProfile|null>;
 }

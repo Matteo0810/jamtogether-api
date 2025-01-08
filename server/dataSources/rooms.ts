@@ -2,9 +2,10 @@ import {v4 as uuid} from "uuid";
 
 import redis from "../services/redis";
 
-import MusicService, { IMusicToken, ITrack } from "../business/musicServices/MusicService";
-import SpotifyService from "../business/musicServices/SpotifyService";
+import MusicService, { IMusicToken, ITrack } from "../business/musics/MusicService";
+import SpotifyService from "../business/musics/SpotifyService";
 import { webSocketConnections } from "../services/websocket";
+import tokenService from "../business/tokenService";
 
 export declare namespace RoomEvents {
 
@@ -24,7 +25,7 @@ export declare namespace RoomEvents {
         type MessageType = "MUSIC_ADDED" | "MUSIC_REMOVED" | "MUSIC_SWITCHED" | "MUSIC_PLAYED" | "MUSIC_PAUSED";
     }
 
-    type MessageType = Music.MessageType | Member.MessageType;
+    type MessageType = Music.MessageType | Member.MessageType | "DISCONNECTED";
     interface IncomingMessage<T = {}> {
         date: Date;
         type: RoomEvents.MessageType;
@@ -65,12 +66,14 @@ export default class Rooms {
         return uuid();
     }
 
-    public async create(token: IMusicToken): Promise<IRoom> {
-        const clientId = this.generateClientId();
+    public async generateAccessToken({ roomId, roles, clientId }: {roomId: string; roles?: string[]; clientId?: string;}): Promise<string> {
+        roles = [...new Set([...roles??[], "user"])];
+        return tokenService.serialize({ roomId, clientId: clientId ?? uuid(), roles });
+    }
 
-        const room: IRoom = {
+    public async create(token: IMusicToken): Promise<IRoom> {
+        const room: Partial<IRoom> = {
             id: this.generateRoomId(),
-            ownerId: clientId,
             createdAt: new Date(),
             token,
 
@@ -80,12 +83,11 @@ export default class Rooms {
 
         const key = `room:${room.id}`;
          
-        const service = new SpotifyService(room.token);
-        service.startListeners(room.id);
+        const service = new SpotifyService(room.token!);
+        service.startListeners(room.id!);
 
         await redis.set(key, JSON.stringify(room));
-        this.join(room, clientId);
-        return room;
+        return room as IRoom;
     }
     
     public async update(id: string, props: Partial<IRoom>): Promise<IRoom> {
@@ -116,12 +118,14 @@ export default class Rooms {
             throw new Error("Room not found.");
         }
 
+        await this.broadcast(room.id, { type: "DISCONNECTED" });
+
         const subscriptionKey = `room:${id}`;
         await redis.del(subscriptionKey);
 
         const service = new SpotifyService(room.token);
         service.removeListeners(room.id);
-        
+
         return room;
     }
 
@@ -145,7 +149,12 @@ export default class Rooms {
         return room;
     }
 
-    public async leave(room: IRoom, clientId: string): Promise<IRoom> {
+    public async leave(room: IRoom, clientId: string): Promise<void> {
+        if(clientId === room.ownerId) {
+            this.delete(room.id);   
+            return;
+        }
+        
         const clientIndex = room.members.findIndex(({id}) => id === clientId);
         if(clientIndex === -1) {
             throw new Error("Client id is not in this room.");
@@ -161,8 +170,6 @@ export default class Rooms {
             type: "MEMBER_LEAVED",
             data: { member }
         });
-
-        return room;
     }
 
     public async broadcast<T>(id: string, message: Omit<RoomEvents.IncomingMessage<T>, "date">): Promise<void> {

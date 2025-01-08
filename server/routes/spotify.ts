@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import queryString from "query-string";
 import {v4 as uuid} from "uuid";
 
+// TODO: deplacer tous les endpoints dans un datasource spotify pour clean un peu
 export default (fastify: FastifyInstance) => {
 
     fastify.get("/login", {
@@ -63,10 +64,13 @@ export default (fastify: FastifyInstance) => {
                     }
                 });
                 const data = await response.json();
-                console.log(data);
                 if(!response.ok) {
                     throw new Error(data?.error_description ?? data?.error ?? "HTTP Error ! " + response.status);
                 }
+                
+                const currentDate = Date.now();
+                data.expires_at = currentDate + data.expires_in * 1000;
+
                 reply.send(data);
             } catch(e) {
                 const error = e as Error;

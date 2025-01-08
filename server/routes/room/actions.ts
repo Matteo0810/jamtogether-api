@@ -1,23 +1,29 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { ITrack } from "../business/musicServices/MusicService";
-import { RoomEvents } from "../dataSources/rooms";
-
-const idParamsCheck = {
-    params: {
-        type: "object",
-        required: ["id"],
-        properties: {
-            id: { type: "string", minLength: 1 }
-        },
-        additionalProperties: false
-    }
-}
+import { ITrack } from "../../business/musics/MusicService";
+import { RoomEvents } from "../../dataSources/rooms";
 
 export default (fastify: FastifyInstance) => {
 
+    fastify.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+        const { id } = req.params as { id: string; };        
+        if (!id || typeof id !== 'string' || id.trim() === '') {
+            return reply.status(400).send({ error: 'Invalid or missing room ID' });
+        }
+
+        const room = await req.dataSources.rooms.get(id);
+        if(!room) {
+            return reply.status(404).send("Invalid room");
+        }
+
+        if(room.id !== req.me?.roomId) {
+            return reply.status(403).send("Cannot perform action in this room.");
+        }
+
+        req.room = room!;
+    });
+
     fastify.get("/search", {
         schema: {
-            ...idParamsCheck,
             querystring: {
                 type: "object",
                 required: ["q"],
@@ -31,7 +37,7 @@ export default (fastify: FastifyInstance) => {
             try {
                 const {q} = req.query as {q: string};
                 if(!q?.trim()) {
-                    reply.status(200).send({ items: [] });
+                    return reply.status(200).send({ items: [] });
                 }
 
                 const room = req.room;
@@ -48,7 +54,6 @@ export default (fastify: FastifyInstance) => {
 
     fastify.post("/add-to-queue", {
         schema: {
-            ...idParamsCheck,
             body: {
                 type: "object",
                 required: ["track"],
@@ -93,7 +98,6 @@ export default (fastify: FastifyInstance) => {
     })
 
     fastify.post("/skip-next", {
-        schema: idParamsCheck,
         handler: async (req: FastifyRequest, reply: FastifyReply) => {
             try {
                 const room = req.room;
@@ -112,7 +116,6 @@ export default (fastify: FastifyInstance) => {
     });
 
     fastify.post("/skip-previous", {
-        schema: idParamsCheck,
         handler: async (req: FastifyRequest, reply: FastifyReply) => {
             try {
                 const room = req.room;
@@ -131,7 +134,6 @@ export default (fastify: FastifyInstance) => {
     });
 
     fastify.post("/play", {
-        schema: idParamsCheck,
         handler: async (req: FastifyRequest, reply: FastifyReply) => {
             try {
                 const room = req.room;
@@ -149,7 +151,6 @@ export default (fastify: FastifyInstance) => {
     });
 
     fastify.post("/pause", {
-        schema: idParamsCheck,
         handler: async (req: FastifyRequest, reply: FastifyReply) => {
             try {
                 const room = req.room;
