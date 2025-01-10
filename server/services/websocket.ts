@@ -10,6 +10,11 @@ const keyPath = '/certs/ballon2zipette.com/privkey.pem';
 const app = express();
 const useSSL = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
+app.get('/', (req, res) => {
+    console.log("Received HTTP request at /");
+    res.send('Hello from Express!');
+});
+
 let server: https.Server|http.Server;
 if(useSSL) {
     server = https.createServer({
@@ -37,11 +42,6 @@ wss.on("connection", (ws: WebSocket, request: Request) => {
         delete webSocketConnections[userId];
         console.log(`[Websocket] socket connection closed: ` + userId);
     })
-
-    wss.on('error', (error: Error) => {
-        console.error(`[Websocket] error for ${userId}:`, error);
-        ws.close();
-    });
 });
 
 export default server;
