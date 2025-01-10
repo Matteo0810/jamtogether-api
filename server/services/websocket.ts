@@ -1,14 +1,18 @@
-import { FastifyInstance } from "fastify";
+import { WebSocket } from "@fastify/websocket";
+import { FastifyInstance, FastifyRequest } from "fastify";
 
 const webSocketConnections: {[key: string]: WebSocket} = {};
 
 const fastifyWs = (fastify: FastifyInstance) => {
-    fastify.get('/ws', { websocket: true }, (connection: any, request: any) => {
-        const userId = request.url.split("/").pop();
-        if(!userId) {
-            console.error(`No user id found, found: ${userId}`)
+    fastify.get('/ws/:id', { websocket: true }, (connection: WebSocket, request: FastifyRequest) => {
+        const params = request.params as {userId: string};
+        
+        if(!params?.userId) {
+            console.error(`No user id found`)
             return;
         }
+        
+        const userId = params.userId;
         console.log(`[Websocket] new socket connection: ` + userId);
         webSocketConnections[userId] = connection;
     
