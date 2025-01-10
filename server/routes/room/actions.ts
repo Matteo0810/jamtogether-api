@@ -15,9 +15,9 @@ export default (fastify: FastifyInstance) => {
             return reply.status(404).send("Invalid room");
         }
 
-        if(room.id !== req.me?.roomId) {
-            return reply.status(403).send("Cannot perform action in this room.");
-        }
+        //if(room.id !== req.me?.roomId) {
+        //    return reply.status(403).send("Cannot perform action in this room.");
+        //}
 
         req.room = room!;
     });
