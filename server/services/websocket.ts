@@ -5,14 +5,13 @@ const webSocketConnections: {[key: string]: WebSocket} = {};
 
 const fastifyWs = (fastify: FastifyInstance) => {
     fastify.get('/ws/:id', { websocket: true }, (connection: WebSocket, request: FastifyRequest) => {
-        const params = request.params as {userId: string};
+        const userId = request.url.split("/").pop();
         
-        if(!params?.userId) {
+        if(!userId) {
             console.error(`No user id found`)
             return;
         }
         
-        const userId = params.userId;
         console.log(`[Websocket] new socket connection: ` + userId);
         webSocketConnections[userId] = connection;
     
