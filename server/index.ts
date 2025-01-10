@@ -4,9 +4,9 @@ import fastifyRateLimit from "@fastify/rate-limit";
 import fastifyHelmet from "@fastify/helmet";
 import fastifyCors from '@fastify/cors';
 import fastifyMultipart from "@fastify/multipart";
+import fastifyWebsocket from "@fastify/websocket";
 
 import redis from "./services/redis";
-
 import websocket from "./services/websocket";
 
 // custom hooks
@@ -15,7 +15,6 @@ import dataSourcesMiddleware from "./middlewares/dataSourcesMiddleware";
 const fastify = Fastify({ logger: true });
 
 const PORT = 8080;
-const WS_PORT = 3000;
 
 // helmet
 await fastify.register(fastifyHelmet, { 
@@ -35,6 +34,9 @@ await fastify.register(fastifyRateLimit, {
 // for files
 await fastify.register(fastifyMultipart);
 
+// websocket
+await fastify.register(fastifyWebsocket);
+
 // middlewares
 fastify.addHook("preHandler", dataSourcesMiddleware);
 fastify.addHook("preHandler", tokenMiddleware);
@@ -48,10 +50,8 @@ try {
     await redis.connect();
     console.log(`Connected to redis ! ✅`);
 
-    // allow websocket connections and store them
-    websocket.listen(WS_PORT, () => {
-        console.log(`Websocket listening to port ws://localhost:${WS_PORT}.`);
-    });
+    websocket(fastify);
+    console.log(`Websocket enabled on /ws/`)
 
     // listening to 0.0.0.0 (for container)
     await fastify.listen({ host: "0.0.0.0", port: PORT });
