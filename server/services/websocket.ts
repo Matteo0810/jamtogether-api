@@ -24,7 +24,7 @@ const wss = new WebSocketServer({ server });
 
 const webSocketConnections: {[key: string]: WebSocket} = {};
 
-app.get('/', (_, res) => {
+app.get('/:clientId', (_, res) => {
     res.send('Health checked !');
 });
 
