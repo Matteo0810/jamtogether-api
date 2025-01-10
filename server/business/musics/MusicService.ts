@@ -85,7 +85,7 @@ export default abstract class MusicService {
             
             return data as T;
         } catch(e) {
-        
+            console.error(e);
         } // ignore
         return null;
     }
