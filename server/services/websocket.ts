@@ -1,5 +1,7 @@
 import { WebSocketServer } from "ws";
 import http from "http";
+import https from "https";
+import fs from "fs";
 
 const certPath = '/certs/ballon2zipette.com/fullchain.pem';
 const keyPath = '/certs/ballon2zipette.com/privkey.pem';
@@ -8,7 +10,7 @@ const useSSL = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
 let server;
 if(useSSL) {
-    server = http.createServer({
+    server = https.createServer({
      cert: certPath,
      key: keyPath
     });
