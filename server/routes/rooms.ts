@@ -114,9 +114,13 @@ export default (fastify: FastifyInstance) => {
                 const { currentPlaying, queue } = await room?.service.getQueue()!;
                 const {token: _, service, ownerId, ...r}: any = room;
 
+                const clientId = request.dataSources.rooms.generateClientId()
                 const accessToken = await request.dataSources.rooms.generateAccessToken({
-                    roomId: r.id
+                    roomId: r.id,
+                    clientId
                 });
+
+                await request.dataSources.rooms.join(room!, clientId)
                 
                 reply.status(200).send({
                     accessToken,
