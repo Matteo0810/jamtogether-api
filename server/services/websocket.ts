@@ -29,20 +29,15 @@ wss.on("connection", (ws: WebSocket, request: Request) => {
     console.log(`[Websocket] new socket connection: ` + userId);
     webSocketConnections[userId] = ws;
 
-        // TODO, opti ???
-    const pingInterval = setInterval(() => {
-        if (ws.readyState === ws.OPEN) {
-            ws.send();  // Envoie un ping pour vérifier la connexion
-        }
-    }, 30000);  // Pinger toutes les 30 secondes
-    wss.on('pong', () => {
-        console.log(`[Websocket] pong from ${userId}`);
-    });
-
     wss.on('close', () => {
         delete webSocketConnections[userId];
         console.log(`[Websocket] socket connection closed: ` + userId);
     })
+
+    wss.on('error', (error: Error) => {
+        console.error(`[Websocket] error for ${userId}:`, error);
+        ws.close();
+    });
 });
 
 export default server;
