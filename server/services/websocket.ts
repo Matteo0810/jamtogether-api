@@ -29,6 +29,11 @@ wss.on("connection", (ws: WebSocket, request: Request) => {
     console.log(`[Websocket] new socket connection: ` + userId);
     webSocketConnections[userId] = ws;
 
+    // TODO, opti ???
+    wss.on('pong', () => {
+        console.log(`[Websocket] pong from ${userId}`);
+    });
+
     wss.on('close', () => {
         delete webSocketConnections[userId];
         console.log(`[Websocket] socket connection closed: ` + userId);
