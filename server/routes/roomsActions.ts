@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { ITrack } from "../business/musicServices/MusicService";
+import { ITrack } from "../business/musics/MusicService";
 import { RoomEvents } from "../dataSources/rooms";
 
 const idParamsCheck = {
