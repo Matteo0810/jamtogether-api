@@ -31,10 +31,10 @@ export default (fastify: FastifyInstance) => {
                 const service = new SpotifyService(token);
 
                 // user needs to be premium
-                const userProfile = await service.getUserProfile();
-                if(userProfile?.isPremium !== true) {
-                    return reply.status(403).send({ message: "You need to have a premium account to use to create a room." });
-                }
+                //const userProfile = await service.getUserProfile();
+                //if(userProfile?.isPremium !== true) {
+                    //return reply.status(403).send({ message: "You need to have a premium account to use to create a room." });
+                //}
 
                 const room = await request.dataSources.rooms.create(token);
                 const ownerId = request.dataSources.rooms.generateClientId();
