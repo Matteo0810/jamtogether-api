@@ -50,7 +50,7 @@ try {
 
     // allow websocket connections and store them
     websocket.listen(WS_PORT, () => {
-        console.log(`Websocket listening to port ${WS_PORT}.`);
+        console.log(`Websocket listening to port ws://localhost:${WS_PORT}.`);
     });
 
     // listening to 0.0.0.0 (for container)

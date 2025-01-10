@@ -24,14 +24,12 @@ const wss = new WebSocketServer({ server });
 
 const webSocketConnections: {[key: string]: WebSocket} = {};
 
-app.get('/:clientId', (_, res) => {
-    res.send('Health checked !');
-});
-
 wss.on("connection", (ws: WebSocket, request: Request) => {
     const userId = request.url.split("/").pop();
-    if(!userId)
+    if(!userId) {
+        console.error(`No user id found, found: ${userId}`)
         return;
+    }
     console.log(`[Websocket] new socket connection: ` + userId);
     webSocketConnections[userId] = ws;
 
