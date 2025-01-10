@@ -1,7 +1,20 @@
 import { WebSocketServer } from "ws";
 import http from "http";
 
-const server = http.createServer();
+const certPath = '/certs/ballon2zipette.com/fullchain.pem';
+const keyPath = '/certs/ballon2zipette.com/privkey.pem';
+
+const useSSL = fs.existsSync(certPath) && fs.existsSync(keyPath);
+
+if(useSSL) {
+    server = http.createServer({
+     cert: certPath,
+     key: keyPath
+    });
+} else {
+    console.warn('No certificate found ! Use no ssl certificate there.')
+    server = http.createServer();
+}
 const wss = new WebSocketServer({ server });
 
 const webSocketConnections: {[key: string]: WebSocket} = {};
