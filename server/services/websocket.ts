@@ -3,8 +3,8 @@ import http from "http";
 import https from "https";
 import fs from "fs";
 
-const certPath = '/root/ballon2zipette-corp/letsencrypt/archive/ballon2zipette.com/fullchain.pem';
-const keyPath = '/root/ballon2zipette-corp/letsencrypt/archive/ballon2zipette.com/privkey.pem';
+const certPath = '/certs/ballon2zipette.com/fullchain.pem';
+const keyPath = '/certs/ballon2zipette.com/privkey.pem';
 
 const useSSL = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
