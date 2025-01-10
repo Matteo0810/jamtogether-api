@@ -3,16 +3,16 @@ import http from "http";
 import https from "https";
 import fs from "fs";
 
-const certPath = '/certs/ballon2zipette.com/fullchain.pem';
-const keyPath = '/certs/ballon2zipette.com/privkey.pem';
+const certPath = './test.pem';
+const keyPath = './test_private.pem';
 
 const useSSL = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
 let server: https.Server|http.Server;
 if(useSSL) {
     server = https.createServer({
-     cert: certPath,
-     key: keyPath
+     cert: fs.readFileSync(certPath),
+     key: fs.readFileSync(keyPath)
     });
 } else {
     console.warn('No certificate found ! Use no ssl certificate there.')
