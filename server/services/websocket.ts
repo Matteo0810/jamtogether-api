@@ -6,6 +6,7 @@ const keyPath = '/certs/ballon2zipette.com/privkey.pem';
 
 const useSSL = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
+let server;
 if(useSSL) {
     server = http.createServer({
      cert: certPath,
