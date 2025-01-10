@@ -73,6 +73,7 @@ export default abstract class MusicService {
         });
 
         const text = await response.text();
+        console.log(text)
         if(!text?.trim())
             return null;
         
