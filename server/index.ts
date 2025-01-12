@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { FastifyError } from "fastify";
 
 import fastifyRateLimit from "@fastify/rate-limit";
 import fastifyHelmet from "@fastify/helmet";
@@ -8,6 +8,7 @@ import fastifyWebsocket from "@fastify/websocket";
 
 import redis from "./services/redis";
 import websocket from "./services/websocket";
+import logger from "./services/logger";
 
 // custom hooks
 import dataSourcesMiddleware from "./middlewares/dataSourcesMiddleware";
@@ -41,6 +42,17 @@ await fastify.register(fastifyWebsocket);
 fastify.addHook("preHandler", dataSourcesMiddleware);
 fastify.addHook("preHandler", tokenMiddleware);
 
+// error handler
+fastify.setErrorHandler((error: FastifyError) => {
+    logger.error({
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        statusCode: error.statusCode,
+        cause: error.cause
+    });
+});
+
 // routes
 import router from "./routes/index";
 import tokenMiddleware from "./middlewares/tokenMiddleware";
@@ -51,11 +63,11 @@ try {
     console.log(`Connected to redis ! ✅`);
 
     websocket(fastify);
-    console.log(`Websocket enabled on /ws/`)
+    console.log(`Websocket enabled on ws://localhost:${PORT}/ws/`);
 
     // listening to 0.0.0.0 (for container)
     await fastify.listen({ host: "0.0.0.0", port: PORT });
-    console.log(`Server running on port http://localhost:${PORT} 🚀`);
+    logger.info(`Server running on port http://localhost:${PORT} 🚀`);
 } catch (err) {
     fastify.log.error(err);
     process.exit(1);

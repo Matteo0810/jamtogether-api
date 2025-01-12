@@ -33,7 +33,7 @@ export default (fastify: FastifyInstance) => {
                 // user needs to be premium
                 const userProfile = await service.getUserProfile();
                 if(userProfile?.isPremium !== true) {
-                    return reply.status(403).send({ message: "You need to have a premium account to use to create a room." });
+                    return reply.status(403).send({ message: "You need to have a premium account to create a room." });
                 }
 
                 const room = await request.dataSources.rooms.create(token);
@@ -107,7 +107,7 @@ export default (fastify: FastifyInstance) => {
                 const { id } = request.params as {id: string;}; 
                 const room = await request.dataSources.rooms.get(id);
                 if(!room) {
-                    reply.status(404).send({ message: "Room introuvable." });
+                    return reply.status(404).send({ message: "Room not found or expired." });
                 }
 
                 const player = await room?.service.getPlayer();

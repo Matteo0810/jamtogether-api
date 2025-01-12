@@ -1,5 +1,6 @@
 import queryString from "query-string";
 import Rooms from "../../dataSources/rooms";
+import logger from "../../services/logger";
 
 export type IMusicService = "SPOTIFY";
 export interface IMusicToken {
@@ -28,7 +29,6 @@ export interface ITrack {
 export interface IPlayer {
     isPlaying: boolean;
     deviceName: string;
-    musicTimeRemaing: number;
 }
 
 export interface IUserProfile {
@@ -45,12 +45,10 @@ export default abstract class MusicService {
     private token: IMusicToken;
     
     private readonly baseURL: string;
-    protected readonly rooms: Rooms;
 
     public constructor(baseURL: string, token: IMusicToken) {
         this.token = token;
         this.baseURL = baseURL;
-        this.rooms = new Rooms();
     }
 
     public async request<T = {}>({ endpoint, body, query, headers, method = "GET" }: IRequestParams): Promise<T|null> {
@@ -62,6 +60,7 @@ export default abstract class MusicService {
         if(query) {
             url+=`?${queryString.stringify(query)}`;
         }
+
 
         const response = await fetch(url, {
             method,
@@ -85,8 +84,8 @@ export default abstract class MusicService {
             
             return data as T;
         } catch(e) {
-            console.error(e);
-        } // ignore
+            logger.error({ ...e as Error, fetchResponse: text });
+        }
         return null;
     }
 
@@ -103,10 +102,6 @@ export default abstract class MusicService {
         return Date.now() >= this.token.expiresAt;
     }
     public abstract generateToken(oldToken: IMusicToken): Promise<IMusicToken>;
-
-    // listeners
-    public abstract startListeners(roomId: string): void;
-    public abstract removeListeners(roomId: string): void;
 
     // user's queue
     public abstract addToQueue(id: string): Promise<void>;

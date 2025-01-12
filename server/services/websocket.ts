@@ -1,5 +1,6 @@
 import { WebSocket } from "@fastify/websocket";
 import { FastifyInstance, FastifyRequest } from "fastify";
+import logger from "./logger";
 
 const webSocketConnections: {[key: string]: WebSocket} = {};
 
@@ -12,12 +13,12 @@ const fastifyWs = (fastify: FastifyInstance) => {
             return;
         }
         
-        console.log(`[Websocket] new socket connection: ` + userId);
+        logger.info(`[Websocket] new socket connection: ` + userId);
         webSocketConnections[userId] = connection;
     
         connection.on('close', () => {
             delete webSocketConnections[userId];
-            console.log(`[Websocket] socket connection closed: ` + userId);
+            logger.info(`[Websocket] socket connection closed: ` + userId);
         })
     });
 }

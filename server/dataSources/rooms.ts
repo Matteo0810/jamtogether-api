@@ -1,6 +1,6 @@
 import {v4 as uuid} from "uuid";
 
-import redis from "../services/redis";
+import redis, { setRedisKey } from "../services/redis";
 
 import MusicService, { IMusicToken, ITrack } from "../business/musics/MusicService";
 import SpotifyService from "../business/musics/SpotifyService";
@@ -25,7 +25,7 @@ export declare namespace RoomEvents {
         type MessageType = "MUSIC_ADDED" | "MUSIC_REMOVED" | "MUSIC_SWITCHED" | "MUSIC_PLAYED" | "MUSIC_PAUSED";
     }
 
-    type MessageType = Music.MessageType | Member.MessageType | "DISCONNECTED";
+    type MessageType = Music.MessageType | Member.MessageType | "DISCONNECTED" | "NEW_DEVICE";
     interface IncomingMessage<T = {}> {
         date: Date;
         type: RoomEvents.MessageType;
@@ -81,12 +81,7 @@ export default class Rooms {
             members: [],
         };
 
-        const key = `room:${room.id}`;
-         
-        const service = new SpotifyService(room.token!);
-        service.startListeners(room.id!);
-
-        await redis.set(key, JSON.stringify(room));
+        await setRedisKey(`room:${room.id}`, room);
         return room as IRoom;
     }
     
@@ -97,7 +92,7 @@ export default class Rooms {
         }
         delete (room as any).service;
         const newRoomData = {...room, ...props};
-        await redis.set(`room:${id}`, JSON.stringify(newRoomData));
+        await setRedisKey(`room:${id}`, newRoomData);
         return newRoomData;
     }
 
@@ -122,10 +117,6 @@ export default class Rooms {
 
         const subscriptionKey = `room:${id}`;
         await redis.del(subscriptionKey);
-
-        const service = new SpotifyService(room.token);
-        service.removeListeners(room.id);
-
         return room;
     }
 

@@ -14,4 +14,7 @@ ENV NODE_ENV production
 # build typescript project
 RUN npm run build
 
+# set the logger
+ENV APP_NAME JamTogether
+
 CMD ["npm", "run", "start"]
