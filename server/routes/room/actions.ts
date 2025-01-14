@@ -15,6 +15,9 @@ export default (fastify: FastifyInstance) => {
             return reply.status(404).send("Room not found");
         }
 
+        const member = room.members.find(m => m.id === req.me!.clientId);
+        req.me!.member = member;
+
         //if the token sent by the user isn't equal to the current room do not allow actions on it
         if(room.id !== req.me?.roomId) {
             return reply.status(403).send("Cannot perform action in this room.");
@@ -87,7 +90,7 @@ export default (fastify: FastifyInstance) => {
                 await room?.service.addToQueue(track.id);
                 await req.dataSources.rooms.broadcast<RoomEvents.Music.Added>(room?.id!, {
                     type: "MUSIC_ADDED",
-                    data: { track }
+                    data: { track, by: req.me!?.member }
                 });
 
                 reply.status(200).send({ success: true });
@@ -105,7 +108,7 @@ export default (fastify: FastifyInstance) => {
                 const { currentPlaying: newTrack, queue: newQueue } = await room?.service.skipNext()!;
                 await req.dataSources.rooms.broadcast<RoomEvents.Music.Switched>(room?.id!, {
                     type: "MUSIC_SWITCHED",
-                    data: { newTrack: newTrack!, newQueue: newQueue! }
+                    data: { newTrack: newTrack!, newQueue: newQueue!, by: req.me!?.member }
                 });
 
                 reply.status(200).send({ success: true });
@@ -123,7 +126,7 @@ export default (fastify: FastifyInstance) => {
                 const { currentPlaying: newTrack, queue: newQueue } = await room?.service.skipPrevious()!;
                 await req.dataSources.rooms.broadcast<RoomEvents.Music.Switched>(room?.id!, {
                     type: "MUSIC_SWITCHED",
-                    data: { newTrack: newTrack!, newQueue: newQueue! }
+                    data: { newTrack: newTrack!, newQueue: newQueue!, by: req.me!?.member}
                 });
 
                 reply.status(200).send({ success: true });
@@ -141,7 +144,7 @@ export default (fastify: FastifyInstance) => {
                 const { currentPlaying: newTrack, queue: newQueue } = await room?.service.play()!;
                 await req.dataSources.rooms.broadcast<RoomEvents.Music.Played>(room?.id!, { 
                     type: "MUSIC_PLAYED",
-                    data: { newTrack: newTrack!, newQueue }
+                    data: { newTrack: newTrack!, newQueue, by: req.me!?.member }
                 });
                 reply.status(200).send({ success: true });
             } catch(e) {
@@ -158,7 +161,7 @@ export default (fastify: FastifyInstance) => {
                 const { currentPlaying: newTrack, queue: newQueue } = await room?.service.pause()!;
                 await req.dataSources.rooms.broadcast<RoomEvents.Music.Paused>(room?.id!, { 
                     type: "MUSIC_PAUSED",
-                    data: { newTrack: newTrack!, newQueue }
+                    data: { newTrack: newTrack!, newQueue, by: req.me!?.member }
                 });                
                 reply.status(200).send({ success: true });
             } catch(e) {

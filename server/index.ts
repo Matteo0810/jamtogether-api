@@ -62,6 +62,9 @@ try {
     await redis.connect();
     console.log(`Connected to redis ! ✅`);
 
+    await redis.del("room:*"); // delete all rooms
+    logger.info(`Cleaned all rooms from redis`);
+
     websocket(fastify);
     console.log(`Websocket enabled on ws://localhost:${PORT}/ws/`);
 

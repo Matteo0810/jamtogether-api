@@ -29,7 +29,7 @@ function log(level: "error"|"warning"|"info", data?: TLog) {
 
     console.log(JSON.stringify({
         level,
-        service: process.env.APP_NAME! ?? "Unknown",
+        loggerService: process.env.APP_NAME! ?? "Unknown",
         ...data
     }));
 }

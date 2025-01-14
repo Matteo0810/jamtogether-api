@@ -16,16 +16,16 @@ export declare namespace RoomEvents {
         type MessageType = "MEMBER_JOINED" |  "MEMBER_LEAVED";
     }
     namespace Music {
-        interface Added { track: ITrack; }
-        interface Removed { track: ITrack; }
-        interface Switched { newTrack: ITrack; newQueue: Array<ITrack>; }
-        interface Played { newTrack: ITrack, newQueue: Array<ITrack> }
-        interface Paused { newTrack: ITrack, newQueue: Array<ITrack> }
+        interface Added { track: ITrack; by?: IRoomMember; }
+        interface Removed { track: ITrack; by?: IRoomMember; }
+        interface Switched { newTrack: ITrack; newQueue: Array<ITrack>; by?: IRoomMember; }
+        interface Played { newTrack: ITrack, newQueue: Array<ITrack>; by?: IRoomMember; }
+        interface Paused { newTrack: ITrack, newQueue: Array<ITrack>; by?: IRoomMember; }
 
         type MessageType = "MUSIC_ADDED" | "MUSIC_REMOVED" | "MUSIC_SWITCHED" | "MUSIC_PLAYED" | "MUSIC_PAUSED";
     }
 
-    type MessageType = Music.MessageType | Member.MessageType | "DISCONNECTED" | "NEW_DEVICE";
+    type MessageType = Music.MessageType | Member.MessageType | "DISCONNECTED" | "NEW_DEVICE" | "HISTORY_MODIFIED";
     interface IncomingMessage<T = {}> {
         date: Date;
         type: RoomEvents.MessageType;
@@ -122,13 +122,15 @@ export default class Rooms {
 
     public async join(room: IRoom, clientId: string): Promise<IRoom> {
         if(room.members.findIndex(({id}) => id === clientId) !== -1) {
-            throw new Error("Client id already joined.");
+            return room;
         }
+
         const member: IRoomMember = {
             id: clientId, 
-            displayName: clientId
+            displayName: "User " + (room.members.length+1)
         };
 
+        // TODO passer en paramètre le me, s'il existe déjà alors ne rien faire
         await this.update(room.id, {
             members: [...room.members, member]
         });
@@ -171,15 +173,20 @@ export default class Rooms {
             .map(({id: uid}) => webSocketConnections[uid])
             .filter(ws => !!ws);
 
+        const newHistory = [...room.history, {...message, date: new Date()} as RoomEvents.IncomingMessage]
+
         // broadcast the message to all members
         membersValidWebsockets.forEach(ws => {
             ws.send(JSON.stringify(message));
+            ws.send(JSON.stringify({
+                type: "HISTORY_MODIFIED",
+                date: new Date(),
+                data: { newHistory }
+            } as RoomEvents.IncomingMessage<{ newHistory: RoomEvents.IncomingMessage[] }>))
         });
-
-        // then put it in the history
-        this.update(room.id, {
-            history: [...room.history, message as RoomEvents.IncomingMessage]
-        })
+        
+        // then put it in redis
+        this.update(room.id, { history: newHistory })
     }
 
 }

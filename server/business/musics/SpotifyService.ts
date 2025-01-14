@@ -1,12 +1,11 @@
-import queryString from "query-string";
-
-import Rooms, { RoomEvents } from "../../dataSources/rooms";
+import Rooms, { IRoom, RoomEvents } from "../../dataSources/rooms";
 import { sleep } from "../../helpers/globalUtils";
 
 import redis from "../../services/redis";
 
 import MusicService, { IMusicToken, IPlayer, IQuerySearch, ITrack, IUserProfile, TQueue } from "./MusicService";
 import Spotify from "../../dataSources/musics/spotify";
+import logger from "../../services/logger";
 
 export interface ISpotifyCredentials {
     access_token: string
@@ -68,49 +67,62 @@ export default class SpotifyService extends MusicService {
     }
 
     public static async startEvents(): Promise<void> {
-        // will create another thread
-        const rooms = new Rooms();
-        await new Promise((resolve) => resolve(
-            setInterval(async () => {
-                const roomIds = await redis.keys("room:*");
-                roomIds.forEach(async roomId => {
-                    const room = await rooms.get(roomId);
-                    if(!room) {
-                        SpotifyService.cache.delete(roomId);
-                    } else {
-                        const spotifyService = new SpotifyService(room.token);
-                        const cachedRoom = SpotifyService.getCache(roomId);
-                        
-                        const {currentPlaying, queue} = await spotifyService.getQueue();
-                        const {isPlaying, deviceName} = await spotifyService.getPlayer();
+        const threadInterval = 10e5 // 5 seconds // TODO decrease once a solution has been found
 
-                        if(deviceName !== cachedRoom?.states?.deviceName) {
-                            cachedRoom.states.deviceName = deviceName;
-                            await rooms.broadcast<{ deviceName: string; }>(cachedRoom.roomId, {
-                                type: "NEW_DEVICE",
-                                data: { deviceName }
-                            });
-                        }
+        // TODO
+        // // will create another thread
+        // const rooms = new Rooms();
+        // try {
+        //     await new Promise((resolve) => resolve(
+        //         setInterval(async () => {
+        //             const roomIds = await redis.keys("room:*");
+        //             roomIds.forEach(async roomKey => {
+        //                 const roomId = roomKey.split(":").pop()!;
+        //                 const result = await redis.get(roomKey);
+        //                 if(!result && SpotifyService.cache.has(roomId)) {
+        //                     SpotifyService.cache.delete(roomId);
+        //                 } else if(result) {
+        //                     const room = JSON.parse(result) as IRoom;
+        //                     const spotifyService = new SpotifyService(room!.token);
+        //                     const cachedRoom = SpotifyService.getCache(roomId);
+                            
+        //                     const {currentPlaying, queue} = await spotifyService.getQueue();
+        //                     const {isPlaying, deviceName} = await spotifyService.getPlayer();
 
-                        if(isPlaying !== cachedRoom?.states.isPlaying) {
-                            cachedRoom.states.isPlaying = isPlaying;
-                            await rooms.broadcast<RoomEvents.Music.Played|RoomEvents.Music.Paused>(cachedRoom.roomId, {
-                                type: isPlaying ? "MUSIC_PLAYED" : "MUSIC_PAUSED"
-                            });
-                        }
+        //                     if(deviceName !== cachedRoom?.states?.deviceName) {
+        //                         logger.info(`[SpotifyCache] New device deteched for room ${roomId}, handeling event...`);
+        //                         cachedRoom.states.deviceName = deviceName;
+        //                         await rooms.broadcast<{ deviceName: string; }>(cachedRoom.roomId, {
+        //                             type: "NEW_DEVICE",
+        //                             data: { deviceName }
+        //                         });
+        //                     }
 
-                        if(currentPlaying?.id !== cachedRoom.states.songId) {
-                            await rooms.broadcast<RoomEvents.Music.Switched>(cachedRoom.roomId, {
-                                type: "MUSIC_SWITCHED",
-                                data: { newQueue: queue, newTrack: currentPlaying! }
-                            });
+        //                     if(isPlaying !== cachedRoom?.states.isPlaying) {
+        //                         logger.info(`[SpotifyCache] Music ${isPlaying ? "Played" : "Paused"} for room ${roomId}, handeling event...`);
+        //                         cachedRoom.states.isPlaying = isPlaying;
+        //                         await rooms.broadcast<RoomEvents.Music.Played|RoomEvents.Music.Paused>(cachedRoom.roomId, {
+        //                             type: isPlaying ? "MUSIC_PLAYED" : "MUSIC_PAUSED"
+        //                         });
+        //                     }
 
-                            cachedRoom.states.songId = currentPlaying?.id!;
-                        }
-                    }
-                })
-            }, 2e3)
-        ));
+        //                     if(currentPlaying?.id !== cachedRoom.states.songId) {
+        //                         logger.info(`[SpotifyCache] The music has changed in room ${roomId}, handeling event...`);
+        //                         await rooms.broadcast<RoomEvents.Music.Switched>(cachedRoom.roomId, {
+        //                             type: "MUSIC_SWITCHED",
+        //                             data: { newQueue: queue, newTrack: currentPlaying! }
+        //                         });
+
+        //                         cachedRoom.states.songId = currentPlaying?.id!;
+        //                     }
+        //                 }
+        //             })
+        //         }, threadInterval)
+        //     ));
+        // } catch(e) {
+        //     const error = e as Error;
+        //     logger.error(error);
+        // }
     }
 
     public async addToQueue(id: string): Promise<void> {

@@ -1,4 +1,5 @@
 import { createClient } from 'redis';
+import logger from './logger';
 
 const client = createClient({
     socket: {
@@ -7,13 +8,10 @@ const client = createClient({
     }
 });
 
-client.on('error', (err) => 
-    console.log('Redis Client Error', err)
-);
+client.on('error', err => logger.error(err));
 
 const setRedisKey = async (key: string, data: Record<string, unknown>) => {
-    await client.set(key, JSON.stringify(data));
-    await client.expireAt(key, (Date.now()/1000) * 86400); // expires in 24 hours
+    await client.set(key, JSON.stringify(data), { EX: 60*60*24 }); // 24 hours
 }
 
 export default client;

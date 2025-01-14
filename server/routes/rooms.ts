@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { IMusicToken } from "../business/musics/MusicService";
 import SpotifyService from "../business/musics/SpotifyService";
+import logger from "../services/logger";
 
 export default (fastify: FastifyInstance) => {
 

@@ -1,5 +1,5 @@
 import 'fastify';
-import Rooms, { IRoom } from './server/dataSources/rooms';
+import Rooms, { IRoom, IRoomMember } from './server/dataSources/rooms';
 
 import MusicService from './server/business/musics/MusicService';
 import { IToken } from './server/business/tokenService';
@@ -16,7 +16,7 @@ declare module 'fastify' {
         dataSources: IDataSource;
 
         room?: IRoom&{service: MusicService};
-        me?: IToken;
+        me?: IToken&{member?: IRoomMember};
     }
 
 }
