@@ -104,7 +104,7 @@ export default abstract class MusicService {
     public abstract generateToken(oldToken: IMusicToken): Promise<IMusicToken>;
 
     // user's queue
-    public abstract addToQueue(id: string): Promise<void>;
+    public abstract addToQueue(id: string): Promise<TQueue>;
     public abstract getQueue(): Promise<TQueue>;
     
     // api search musics

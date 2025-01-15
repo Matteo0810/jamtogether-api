@@ -145,7 +145,7 @@ export default class SpotifyService extends MusicService {
         }, threadInterval);
     }
 
-    public async addToQueue(id: string): Promise<void> {
+    public async addToQueue(id: string): Promise<TQueue> {
         await this.request({
             endpoint: "/me/player/queue",
             method: "POST",
@@ -153,6 +153,7 @@ export default class SpotifyService extends MusicService {
                 uri: id
             }
         })
+        return this.getQueue();
     }
 
     public async getQueue(): Promise<TQueue> {

@@ -87,10 +87,10 @@ export default (fastify: FastifyInstance) => {
                 const {track} = req.body as {track: ITrack};
                 const room = req.room;
 
-                await room?.service.addToQueue(track.id);
+                const {queue: newQueue} = await room?.service.addToQueue(track.id)!;
                 await req.dataSources.rooms.broadcast<RoomEvents.Music.Added>(room?.id!, {
                     type: "MUSIC_ADDED",
-                    data: { track, by: req.me!?.member }
+                    data: { newTrack: track, newQueue, by: req.me!?.member }
                 });
 
                 reply.status(200).send({ success: true });

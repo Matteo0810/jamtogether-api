@@ -2,7 +2,7 @@ import {v4 as uuid} from "uuid";
 
 import redis, { setRedisKey } from "../services/redis";
 
-import MusicService, { IMusicToken, ITrack } from "../business/musics/MusicService";
+import MusicService, { IMusicToken, ITrack, TQueue } from "../business/musics/MusicService";
 import SpotifyService from "../business/musics/SpotifyService";
 import { webSocketConnections } from "../services/websocket";
 import tokenService from "../business/tokenService";
@@ -18,8 +18,8 @@ export declare namespace RoomEvents {
         type MessageType = "MEMBER_JOINED" |  "MEMBER_LEAVED";
     }
     namespace Music {
-        interface Added { track: ITrack; by?: IRoomMember; }
-        interface Removed { track: ITrack; by?: IRoomMember; }
+        interface Added { newTrack: ITrack, newQueue: Array<ITrack>; by?: IRoomMember; }
+        interface Removed { newTrack: ITrack, newQueue: Array<ITrack>; by?: IRoomMember; }
         interface Switched { newTrack: ITrack; newQueue: Array<ITrack>; by?: IRoomMember; }
         interface Played { newTrack: ITrack, newQueue: Array<ITrack>; by?: IRoomMember; }
         interface Paused { newTrack: ITrack, newQueue: Array<ITrack>; by?: IRoomMember; }
