@@ -10,13 +10,17 @@ interface IDataSource {
     spotify: Spotify;
 }
 
+interface IMe extends IToken {
+    member?: IRoomMember;
+}
+
 declare module 'fastify' {
 
     interface FastifyRequest {
         dataSources: IDataSource;
 
         room?: IRoom&{service: MusicService};
-        me?: IToken&{member?: IRoomMember};
+        me?: IMe;
     }
 
 }

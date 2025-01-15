@@ -14,5 +14,12 @@ const setRedisKey = async (key: string, data: Record<string, unknown>) => {
     await client.set(key, JSON.stringify(data), { EX: 60*60*24 }); // 24 hours
 }
 
+const redisDeleteAll = async (pattern: string) => {
+    const keys = await client.keys(pattern);
+    for(const key of keys) {
+        await client.del(key);
+    }
+}
+
 export default client;
-export { setRedisKey }
+export { setRedisKey, redisDeleteAll }

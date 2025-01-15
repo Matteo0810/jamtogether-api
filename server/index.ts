@@ -6,7 +6,7 @@ import fastifyCors from '@fastify/cors';
 import fastifyMultipart from "@fastify/multipart";
 import fastifyWebsocket from "@fastify/websocket";
 
-import redis from "./services/redis";
+import redis, { redisDeleteAll } from "./services/redis";
 import websocket from "./services/websocket";
 import logger from "./services/logger";
 
@@ -62,7 +62,7 @@ try {
     await redis.connect();
     console.log(`Connected to redis ! ✅`);
 
-    await redis.del("room:*"); // delete all rooms
+    await redisDeleteAll("room:*"); // delete all rooms
     logger.info(`Cleaned all rooms from redis`);
 
     websocket(fastify);

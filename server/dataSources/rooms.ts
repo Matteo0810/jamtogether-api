@@ -6,6 +6,8 @@ import MusicService, { IMusicToken, ITrack } from "../business/musics/MusicServi
 import SpotifyService from "../business/musics/SpotifyService";
 import { webSocketConnections } from "../services/websocket";
 import tokenService from "../business/tokenService";
+import { IMe } from "../../fastify";
+import logger from "../services/logger";
 
 export declare namespace RoomEvents {
 
@@ -37,6 +39,7 @@ export declare namespace RoomEvents {
 export interface IRoomMember {
     id: string;
     displayName: string;
+    isConnected: boolean;
 }
 
 export interface IRoom {
@@ -120,25 +123,32 @@ export default class Rooms {
         return room;
     }
 
-    public async join(room: IRoom, clientId: string): Promise<IRoom> {
-        if(room.members.findIndex(({id}) => id === clientId) !== -1) {
-            return room;
+    public async join(room: IRoom, clientId: string, me?: IMe): Promise<IRoom> {
+        const hasAlreadyThisMember = room.members.findIndex(({id}) => id === me?.clientId) !== -1;
+        // if member is not connected or the room that he's trying to get connect is different than his room
+        let member: IRoomMember;
+        
+        if(!me || me.roomId !== room.id || !hasAlreadyThisMember) {
+            member = {
+                id: clientId, 
+                displayName: "User " + (room.members.length+1),
+                isConnected: true
+            };
+            await this.update(room.id, {
+                members: [...room.members, member]
+            });
+        // if member is connected to this room
+        } else {
+            const clientIndex = room.members.findIndex(m => m.id === clientId);
+            const m = room.members.at(clientIndex)!;
+            m.isConnected = true;
+            member = m;
         }
 
-        const member: IRoomMember = {
-            id: clientId, 
-            displayName: "User " + (room.members.length+1)
-        };
-
-        // TODO passer en paramètre le me, s'il existe déjà alors ne rien faire
-        await this.update(room.id, {
-            members: [...room.members, member]
-        });
         await this.broadcast<RoomEvents.Member.Joined>(room.id, {
             type: "MEMBER_JOINED",
             data: { member }
         });
-
         return room;
     }
 
@@ -152,9 +162,9 @@ export default class Rooms {
         if(clientIndex === -1) {
             throw new Error("Client id is not in this room.");
         }
+        
         const member = room.members.at(clientIndex)!;
-
-        room.members.splice(clientIndex, 1);
+        room.members.at(clientIndex)!.isConnected = false;
 
         await this.update(room.id, {
             members: room.members
@@ -185,8 +195,13 @@ export default class Rooms {
             } as RoomEvents.IncomingMessage<{ newHistory: RoomEvents.IncomingMessage[] }>))
         });
         
-        // then put it in redis
-        this.update(room.id, { history: newHistory })
+        try {
+            // then put it in redis
+            await this.update(room.id, { history: newHistory })
+        } catch(e) {
+            const error = e as Error;
+            logger.error(error);
+        }
     }
 
 }

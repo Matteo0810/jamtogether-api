@@ -44,6 +44,7 @@ export default class SpotifyService extends MusicService {
 
     // listener caches (only for spotify)
     private static cache: Map<string, IRoomCache> = new Map();
+    private static instance: NodeJS.Timeout;
 
     public constructor(token: IMusicToken) {
         super("https://api.spotify.com/v1", token);
@@ -67,62 +68,81 @@ export default class SpotifyService extends MusicService {
     }
 
     public static async startEvents(): Promise<void> {
-        const threadInterval = 10e5 // 5 seconds // TODO decrease once a solution has been found
+        // 30000 = 30 secondes
+        // 10000 = 10 seconds
+        const threadInterval = 10000;
+        const rooms = new Rooms();
 
-        // TODO
-        // // will create another thread
-        // const rooms = new Rooms();
-        // try {
-        //     await new Promise((resolve) => resolve(
-        //         setInterval(async () => {
-        //             const roomIds = await redis.keys("room:*");
-        //             roomIds.forEach(async roomKey => {
-        //                 const roomId = roomKey.split(":").pop()!;
-        //                 const result = await redis.get(roomKey);
-        //                 if(!result && SpotifyService.cache.has(roomId)) {
-        //                     SpotifyService.cache.delete(roomId);
-        //                 } else if(result) {
-        //                     const room = JSON.parse(result) as IRoom;
-        //                     const spotifyService = new SpotifyService(room!.token);
-        //                     const cachedRoom = SpotifyService.getCache(roomId);
-                            
-        //                     const {currentPlaying, queue} = await spotifyService.getQueue();
-        //                     const {isPlaying, deviceName} = await spotifyService.getPlayer();
+        // do not start another interval !!!!!!
+        if(SpotifyService.instance) return;
 
-        //                     if(deviceName !== cachedRoom?.states?.deviceName) {
-        //                         logger.info(`[SpotifyCache] New device deteched for room ${roomId}, handeling event...`);
-        //                         cachedRoom.states.deviceName = deviceName;
-        //                         await rooms.broadcast<{ deviceName: string; }>(cachedRoom.roomId, {
-        //                             type: "NEW_DEVICE",
-        //                             data: { deviceName }
-        //                         });
-        //                     }
+        SpotifyService.instance = setInterval(async () => {
+            try {
+                const roomKeys = await redis.keys("room:*");
+                for(const roomKey of roomKeys) {
+                    const roomId = roomKey.split(":").pop()!;
+                    const result = await redis.get(roomKey);
 
-        //                     if(isPlaying !== cachedRoom?.states.isPlaying) {
-        //                         logger.info(`[SpotifyCache] Music ${isPlaying ? "Played" : "Paused"} for room ${roomId}, handeling event...`);
-        //                         cachedRoom.states.isPlaying = isPlaying;
-        //                         await rooms.broadcast<RoomEvents.Music.Played|RoomEvents.Music.Paused>(cachedRoom.roomId, {
-        //                             type: isPlaying ? "MUSIC_PLAYED" : "MUSIC_PAUSED"
-        //                         });
-        //                     }
+                    // just remove that from the cache if there is no result
+                    if(!result && SpotifyService.cache.has(roomId)) {
+                        SpotifyService.cache.delete(roomId);
+                        return;
+                    }
+                    
+                    if(result) {
+                        const room = JSON.parse(result) as IRoom;
 
-        //                     if(currentPlaying?.id !== cachedRoom.states.songId) {
-        //                         logger.info(`[SpotifyCache] The music has changed in room ${roomId}, handeling event...`);
-        //                         await rooms.broadcast<RoomEvents.Music.Switched>(cachedRoom.roomId, {
-        //                             type: "MUSIC_SWITCHED",
-        //                             data: { newQueue: queue, newTrack: currentPlaying! }
-        //                         });
+                        // if there is no longer actif member in this room just delete it
+                        if(!room.members.filter(({isConnected}) => isConnected).length) {
+                            await rooms.delete(room.id);
+                            return;
+                        }
 
-        //                         cachedRoom.states.songId = currentPlaying?.id!;
-        //                     }
-        //                 }
-        //             })
-        //         }, threadInterval)
-        //     ));
-        // } catch(e) {
-        //     const error = e as Error;
-        //     logger.error(error);
-        // }
+                        const spotifyService = new SpotifyService(room!.token);
+                        const cachedRoom = SpotifyService.getCache(roomId);
+                        
+                        const {currentPlaying, queue} = await spotifyService.getQueue();
+                        const {isPlaying, deviceName} = await spotifyService.getPlayer();
+
+                        if(deviceName !== cachedRoom?.states?.deviceName) {
+                            logger.info(`[SpotifyCache] New device deteched for room ${roomId}, handeling event...`);
+                            cachedRoom.states.deviceName = deviceName;
+                            await rooms.broadcast<{ deviceName: string; }>(cachedRoom.roomId, {
+                                type: "NEW_DEVICE",
+                                data: { deviceName }
+                            });
+                        }
+
+                        if(isPlaying !== cachedRoom?.states.isPlaying) {
+                            logger.info(`[SpotifyCache] Music ${isPlaying ? "Played" : "Paused"} for room ${roomId}, handeling event...`);
+                            cachedRoom.states.isPlaying = isPlaying;
+                            await rooms.broadcast<RoomEvents.Music.Played|RoomEvents.Music.Paused>(cachedRoom.roomId, {
+                                type: isPlaying ? "MUSIC_PLAYED" : "MUSIC_PAUSED"
+                            });
+                        }
+
+                        if(currentPlaying?.id !== cachedRoom.states.songId) {
+                            logger.info(`[SpotifyCache] The music has changed in room ${roomId}, handeling event...`);
+                            await rooms.broadcast<RoomEvents.Music.Switched>(cachedRoom.roomId, {
+                                type: "MUSIC_SWITCHED",
+                                data: { newQueue: queue, newTrack: currentPlaying! }
+                            });
+
+                            cachedRoom.states.songId = currentPlaying?.id!;
+                        }
+
+                        // finally, update the room cache
+                        SpotifyService.update({
+                            roomId: cachedRoom.roomId,
+                            states: cachedRoom.states
+                        });
+                    }
+                }
+            } catch(e) {
+                const error = e as Error;
+                logger.error(error);
+            }
+        }, threadInterval);
     }
 
     public async addToQueue(id: string): Promise<void> {
@@ -274,7 +294,7 @@ export default class SpotifyService extends MusicService {
         return SpotifyService.cache.get(roomId)!;
     }
 
-    private static initCache(data: IRoomCache): void {
+    private static update(data: IRoomCache): void {
         SpotifyService.cache.set(data.roomId, {
             roomId: data.roomId,
             states: data.states

@@ -1,7 +1,6 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { IMusicToken } from "../business/musics/MusicService";
 import SpotifyService from "../business/musics/SpotifyService";
-import logger from "../services/logger";
 
 export default (fastify: FastifyInstance) => {
 
@@ -44,10 +43,8 @@ export default (fastify: FastifyInstance) => {
                     roomId: room.id,
                     clientId: ownerId
                 });
-                await request.dataSources.rooms.update(room.id, {
-                    ownerId
-                });
-                await request.dataSources.rooms.join(room, ownerId);
+                await request.dataSources.rooms.update(room.id, { ownerId });
+                await request.dataSources.rooms.join(room, ownerId, request.me);
 
                 reply.status(200).send({
                     redirectURI: `${process.env.WEBSITE_URL!}/room/${room.id}`,
@@ -60,7 +57,7 @@ export default (fastify: FastifyInstance) => {
         }
     });
 
-    fastify.get("/leave", {
+    fastify.post("/leave", {
         schema: {
             headers: {
                 type: "object",
@@ -75,11 +72,12 @@ export default (fastify: FastifyInstance) => {
                 if(!me) {
                     return reply.status(403).send({ message: "You're not authenticated anymore" });
                 }
-                const room = await request.dataSources.rooms.get(me.roomId);
 
+                const room = await request.dataSources.rooms.get(me.roomId);
                 if(!room) {
                     return reply.status(403).send({ message: "Invalid room" });
                 }
+                
                 await request.dataSources.rooms.leave(room, me.clientId);
                 reply.status(200).send({ success: true });
             } catch(e) {
@@ -121,7 +119,7 @@ export default (fastify: FastifyInstance) => {
                     clientId
                 });
 
-                await request.dataSources.rooms.join(room!, clientId)
+                await request.dataSources.rooms.join(room!, clientId, request.me)
                 
                 reply.status(200).send({
                     accessToken,
