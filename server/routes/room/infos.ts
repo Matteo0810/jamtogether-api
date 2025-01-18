@@ -20,7 +20,7 @@ export default (fastify: FastifyInstance) => {
             try {
                 const room = req.room;
                 const { id } = req.params as { id: string };
-                reply.status(200).send({ items: await room?.service.getPlaylist(id) });
+                reply.status(200).send({ playlist: await room?.service.getPlaylist(id) });
             } catch(e) {
                 const error = e as Error;
                 reply.status(500).send({
