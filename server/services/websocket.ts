@@ -9,7 +9,8 @@ const fastifyWs = (fastify: FastifyInstance) => {
         const userId = request.url.split("/").pop();
         
         if(!userId) {
-            console.error(`No user id found`)
+            logger.error('No user ID found in the request')
+            connection.close()
             return;
         }
         
@@ -20,6 +21,14 @@ const fastifyWs = (fastify: FastifyInstance) => {
             delete webSocketConnections[userId];
             logger.info(`[Websocket] socket connection closed: ` + userId);
         })
+
+        connection.on('message', (message) => {
+            const msg = message.toString();
+            if (msg === "__ping__") {
+                connection.send("__pong__")
+            }
+        });
+
     });
 }
 
