@@ -214,13 +214,17 @@ export default class SpotifyService extends MusicService {
                 images: {
                     url: string;
                 }[]
+                description: string;
+                public: boolean;
             }[]
         }>({ endpoint, method: "GET" });
         if(!response?.items) return []
         return response.items.map(item => ({
             id: item.id,
             image: item.images[0].url,
-            name: item.name
+            name: item.name,
+            description: item.description,
+            isPublic: item.public,
         }))
     }
 
@@ -231,6 +235,8 @@ export default class SpotifyService extends MusicService {
             images: {
                 url: string;
             }[]
+            description: string;
+            public: boolean;
             tracks: {
                 items: { track: ISpotifyTrackObject; }[];
             }
@@ -239,6 +245,8 @@ export default class SpotifyService extends MusicService {
             id: response.id,
             image: response.images[0].url,
             name: response.name,
+            description: response.description,
+            isPublic: response.public,
             tracks: response.tracks.items.map(({ track }) => ({
                 name: track.name,
                 id: track.uri,

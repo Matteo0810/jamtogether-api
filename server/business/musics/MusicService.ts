@@ -40,6 +40,8 @@ export interface IPlaylist {
     id: string;
     name: string;
     image: string;
+    description: string;
+    isPublic: boolean;
     tracks: ITrack[];
 }
 
