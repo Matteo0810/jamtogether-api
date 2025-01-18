@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 
 export default async (req: FastifyRequest, reply: FastifyReply) => {
-    const { id } = req.params as { id: string; };        
+    const { id } = req.params as { id: string; };
     if (!id || typeof id !== 'string' || id.trim() === '') {
         return reply.status(400).send({ error: 'Invalid or missing room ID' });
     }

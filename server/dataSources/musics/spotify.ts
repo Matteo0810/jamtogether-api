@@ -8,7 +8,7 @@ interface IRequestParams {
 
 export default class Spotify {
 
-    private baseURL: string = "https://accounts.spotify.com";
+    private readonly baseURL: string = "https://accounts.spotify.com";
     private readonly clientId: string = process.env.SPOTIFY_CLIENT_ID!;
     private readonly clientSecret: string = process.env.SPOTIFY_CLIENT_SECRET!;
 
@@ -61,6 +61,7 @@ export default class Spotify {
         const redirect_uri = process.env.WEBSITE_URL+"/create-room";
 
         const scope = [
+            'playlist-read-private',
             'app-remote-control', 
             'user-read-currently-playing', 
             'user-read-playback-position', 
