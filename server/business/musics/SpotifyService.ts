@@ -3,7 +3,7 @@ import { sleep } from "../../helpers/globalUtils";
 
 import redis from "../../services/redis";
 
-import MusicService, { IMusicToken, IPlayer, IQuerySearch, ITrack, IUserProfile, TQueue } from "./MusicService";
+import MusicService, { IMusicToken, IPlayer, IPlaylist, IQuerySearch, ITrack, IUserProfile, TPlaylists, TQueue } from "./MusicService";
 import Spotify from "../../dataSources/musics/spotify";
 import logger from "../../services/logger";
 
@@ -203,6 +203,50 @@ export default class SpotifyService extends MusicService {
             isPlaying: response.is_playing,
             deviceName: response.device.name
         } : { isPlaying: false, deviceName: "unknown" }
+    }
+
+    public async getPlaylists(userId?: string): Promise<TPlaylists | null> {
+        const endpoint = userId ? `/users/${userId}/playlists` : `/me/playlists`;
+        const response = await this.request<{
+            items: {
+                id: string;
+                name: string;
+                images: {
+                    url: string;
+                }[]
+            }[]
+        }>({ endpoint, method: "GET" });
+        if(!response?.items) return []
+        return response.items.map(item => ({
+            id: item.id,
+            image: item.images[0].url,
+            name: item.name
+        }))
+    }
+
+    public async getPlaylist(playlistId: string): Promise<IPlaylist | null> {
+        const response = await this.request<{
+            id: string;
+            name: string;
+            images: {
+                url: string;
+            }[]
+            tracks: {
+                items: { track: ISpotifyTrackObject; }[];
+            }
+        }>({ endpoint: "/playlists/"+playlistId, method: "GET" });
+        return response ? {
+            id: response.id,
+            image: response.images[0].url,
+            name: response.name,
+            tracks: response.tracks.items.map(({ track }) => ({
+                name: track.name,
+                id: track.uri,
+                artists: track.artists.map(({name}) => name),
+                duration: track.duration_ms,
+                image: track.album.images[0].url
+            }))
+        } : null;
     }
 
     public async play(): Promise<TQueue> {

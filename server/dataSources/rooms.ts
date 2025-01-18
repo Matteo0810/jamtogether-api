@@ -50,6 +50,8 @@ export interface IRoom {
 
     history: RoomEvents.IncomingMessage[];
     token: IMusicToken;
+
+    externalIds: { type: string; value: string; }[];
 }
 
 export default class Rooms {
@@ -82,6 +84,7 @@ export default class Rooms {
 
             history: [],
             members: [],
+            externalIds: []
         };
 
         await setRedisKey(`room:${room.id}`, room);

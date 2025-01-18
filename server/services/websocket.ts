@@ -14,12 +14,12 @@ const fastifyWs = (fastify: FastifyInstance) => {
             return;
         }
         
-        logger.info(`[Websocket] new socket connection: ` + userId);
+        //logger.info(`[Websocket] new socket connection: ` + userId);
         webSocketConnections[userId] = connection;
     
         connection.on('close', () => {
             delete webSocketConnections[userId];
-            logger.info(`[Websocket] socket connection closed: ` + userId);
+            //logger.info(`[Websocket] socket connection closed: ` + userId);
         })
 
         connection.on('message', (message) => {

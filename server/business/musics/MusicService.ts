@@ -1,5 +1,4 @@
 import queryString from "query-string";
-import Rooms from "../../dataSources/rooms";
 import logger from "../../services/logger";
 
 export type IMusicService = "SPOTIFY";
@@ -37,6 +36,14 @@ export interface IUserProfile {
     displayName: string;
 }
 
+export interface IPlaylist {
+    id: string;
+    name: string;
+    image: string;
+    tracks: ITrack[];
+}
+
+export type TPlaylists = Pick<IPlaylist, "id"|"name"|"image">[];
 export type TQueue = { queue: Array<ITrack>, currentPlaying: ITrack|null };
 export type IQuerySearch = Array<ITrack>;
 
@@ -118,6 +125,9 @@ export default abstract class MusicService {
     public abstract play(): Promise<TQueue>;
 
     public abstract getPlayer(): Promise<IPlayer|null>;
+
+    public abstract getPlaylists(userId?: string): Promise<TPlaylists|null>;
+    public abstract getPlaylist(playlistId: string): Promise<IPlaylist|null>;
 
     public abstract getUserProfile(): Promise<IUserProfile|null>;
 }

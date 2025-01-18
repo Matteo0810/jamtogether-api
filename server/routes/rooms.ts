@@ -43,7 +43,10 @@ export default (fastify: FastifyInstance) => {
                     roomId: room.id,
                     clientId: ownerId
                 });
-                await request.dataSources.rooms.update(room.id, { ownerId });
+                await request.dataSources.rooms.update(room.id, { 
+                    ownerId,
+                    externalIds: [{ type: "/spotify", value: userProfile.id }]
+                });
                 await request.dataSources.rooms.join(room, ownerId, request.me);
 
                 reply.status(200).send({
