@@ -14,6 +14,7 @@ export declare namespace RoomEvents {
     namespace Member {
         interface Joined { member: IRoomMember; }
         interface Leaved { member: IRoomMember; }
+        interface Nickname { member: IRoomMember; }
         
         type MessageType = "MEMBER_JOINED" |  "MEMBER_LEAVED";
     }
@@ -27,7 +28,7 @@ export declare namespace RoomEvents {
         type MessageType = "MUSIC_ADDED" | "MUSIC_REMOVED" | "MUSIC_SWITCHED" | "MUSIC_PLAYED" | "MUSIC_PAUSED";
     }
 
-    type MessageType = Music.MessageType | Member.MessageType | "DISCONNECTED" | "NEW_DEVICE" | "HISTORY_MODIFIED";
+    type MessageType = Music.MessageType | Member.MessageType | "DISCONNECTED" | "NEW_DEVICE" | "HISTORY_MODIFIED" | "NICKNAME_CHANGED";
     interface IncomingMessage<T = {}> {
         date: Date;
         type: RoomEvents.MessageType;

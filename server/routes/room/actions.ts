@@ -152,4 +152,42 @@ export default (fastify: FastifyInstance) => {
         }
     });
 
+    fastify.post("/change-nickname", {
+        schema: {
+            body: {
+                type: "object",
+                required: ["newNickname"],
+                properties: {
+                    newNickname: { type: "string", minLength: 1 }
+                },
+                additionalProperties: false
+            }
+        },
+        handler: async (req: FastifyRequest, reply: FastifyReply) => {
+            try {
+                const room = req.room;
+                const me = req.me;
+                const { newNickname } = req.body as {newNickname: string;};
+                
+                const members = room?.members??[];
+                const memberIndex = members.findIndex(({id}) => id === me?.clientId);
+                
+                if(memberIndex !== -1) {
+                    members[memberIndex].displayName = newNickname;
+                    req.dataSources.rooms.update(room!?.id, {members});
+
+                    await req.dataSources.rooms.broadcast<RoomEvents.Member.Nickname>(room!?.id, {
+                        type: "NICKNAME_CHANGED",
+                        data: { member: members[memberIndex] }
+                    })
+                    reply.status(200).send({ success: true });
+                }
+                reply.status(404).send({ error: "Member not found." });
+            } catch(e) {
+                const error = e as Error;
+                reply.status(500).send({ message: error.message, stack: error.stack });
+            }
+        }
+    });
+
 }
