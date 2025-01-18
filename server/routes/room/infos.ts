@@ -5,11 +5,11 @@ export default (fastify: FastifyInstance) => {
     
     fastify.addHook('preHandler', roomMiddleware);
 
-    fastify.get("/playlist/:id", {
+    fastify.get("/playlist/:playlistId", {
         schema: {
-            querystring: {
+            params: {
                 type: "object",
-                required: ["id"],
+                required: ["playlistId"],
                 properties: {
                     id: { type: "string", minLength: 1 }
                 },
@@ -19,8 +19,8 @@ export default (fastify: FastifyInstance) => {
         handler: async (req: FastifyRequest, reply: FastifyReply) => {
             try {
                 const room = req.room;
-                const { id } = req.params as { id: string };
-                reply.status(200).send({ playlist: await room?.service.getPlaylist(id) });
+                const { playlistId } = req.params as { playlistId: string };
+                reply.status(200).send({ playlist: await room?.service.getPlaylist(playlistId) });
             } catch(e) {
                 const error = e as Error;
                 reply.status(500).send({
